@@ -1,0 +1,1741 @@
+<title>勝ち筋ラボ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 作業台。上に固定の見出しとタブ、本文は1列（最大1120px）。カードは入力パネルと記録だけに使い、指標は罫線と余白で区切る。
+   色は11/1資料の「橙＋スレート」を引き継ぐ。橙は「次にやること・目標」だけに使う。 */
+:root {
+  --bg: #F6F7F9;
+  --surface: #FFFFFF;
+  --sunk: #EEF1F4;
+  --ink: #1D2430;
+  --ink-2: #485263;
+  --muted: #6F7A8A;
+  --line: #DDE2E8;
+  --slate: #2A3341;
+  --on-slate: #F3F5F8;
+  --accent: #E0560B;
+  --accent-ink: #A9400A;
+  --accent-soft: #FCEADC;
+  --good: #2D7A4D;
+  --good-soft: #E1F1E7;
+  --warn: #946200;
+  --warn-soft: #FBF0D6;
+  --bad: #B3362B;
+  --bad-soft: #F9E1DE;
+  --bar: #E0560B;
+  --bar-track: #ECEFF3;
+  --shadow: 0 1px 2px rgba(29,36,48,.06), 0 4px 16px rgba(29,36,48,.06);
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161C; --surface: #1A2029; --sunk: #222935; --ink: #E8EBEF; --ink-2: #BAC2CD; --muted: #8E98A7;
+    --line: #2E3643; --slate: #0D1117; --on-slate: #E8EBEF;
+    --accent: #F2782F; --accent-ink: #F59A5E; --accent-soft: #3A2618;
+    --good: #5DBB84; --good-soft: #17301F; --warn: #E0B04A; --warn-soft: #33290F; --bad: #EE7A6E; --bad-soft: #3A1C19;
+    --bar: #F2782F; --bar-track: #262E3A; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161C; --surface: #1A2029; --sunk: #222935; --ink: #E8EBEF; --ink-2: #BAC2CD; --muted: #8E98A7;
+  --line: #2E3643; --slate: #0D1117; --on-slate: #E8EBEF;
+  --accent: #F2782F; --accent-ink: #F59A5E; --accent-soft: #3A2618;
+  --good: #5DBB84; --good-soft: #17301F; --warn: #E0B04A; --warn-soft: #33290F; --bad: #EE7A6E; --bad-soft: #3A1C19;
+  --bar: #F2782F; --bar-track: #262E3A; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+body.locked { overflow: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--slate); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; line-height: 1.35; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.55rem; }
+h2 { font-size: 1.12rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+a { color: var(--accent-ink); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--slate); color: var(--on-slate); }
+.top-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 4px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.brand b { font-family: var(--font-display); font-size: 1.15rem; letter-spacing: .04em; }
+.brand b i { font-style: normal; color: var(--accent); }
+.brand span { font-size: .8rem; color: color-mix(in srgb, var(--on-slate) 70%, transparent); }
+@media (max-width: 600px) { .brand span { display: none; } .top-in { padding-block: 10px 2px; } }
+.mode { font-size: .75rem; display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--on-slate) 25%, transparent); white-space: nowrap; }
+.mode::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.mode.is-db::before { background: #5DBB84; }
+.mode.is-local::before { background: #E0B04A; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-block: 4px 0; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs a { color: color-mix(in srgb, var(--on-slate) 72%, transparent); text-decoration: none; padding: 8px 12px 10px; font-size: .9rem; white-space: nowrap; border-bottom: 3px solid transparent; }
+.tabs a:hover { color: var(--on-slate); }
+.tabs a[aria-current="page"] { color: var(--on-slate); border-bottom-color: var(--accent); font-weight: 700; }
+
+main.wrap { padding-block: 24px 64px; display: grid; gap: 28px; }
+main > * { min-width: 0; }
+
+/* generic */
+.lead { color: var(--ink-2); max-width: 68ch; }
+.muted { color: var(--muted); }
+.small { font-size: .82rem; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spread { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.stack { display: grid; gap: 12px; }
+.grid2 { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+.grid2 > * { min-width: 0; }
+.block { display: grid; gap: 14px; align-content: start; }
+.block > *, .stack > * { min-width: 0; }
+.block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.src { font-size: .75rem; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+.empty { border: 1px dashed var(--line); border-radius: var(--r); padding: 18px; color: var(--ink-2); background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.empty b { color: var(--ink); }
+.lbl { display: inline-block; font-size: .72rem; letter-spacing: .06em; color: var(--muted); margin-right: 8px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: .9rem; line-height: 1.4; text-decoration: none; color: var(--ink); }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+.btn.sm { padding: 4px 10px; font-size: .8rem; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--accent-ink); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: .88rem; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; line-height: 1.5; padding: 1px 8px; border-radius: 99px; background: var(--sunk); color: var(--ink-2); white-space: nowrap; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.accent { background: var(--accent-soft); color: var(--accent-ink); }
+.chip.solid { background: var(--slate); color: var(--on-slate); }
+
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--sunk); padding: 3px; border-radius: 8px; }
+.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .85rem; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+/* forms */
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: .8rem; color: var(--ink-2); font-weight: 700; }
+.field > span em { font-style: normal; color: var(--accent-ink); font-weight: 400; margin-left: 4px; }
+.field small { color: var(--muted); font-size: .76rem; }
+input[type=text], input[type=search], input[type=date], input[type=number], select, textarea {
+  width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); line-height: 1.5;
+}
+textarea { resize: vertical; min-height: 80px; }
+.fgrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.check { display: inline-flex; align-items: flex-start; gap: 8px; font-size: .86rem; cursor: pointer; }
+.check input { margin-top: 5px; accent-color: var(--accent); }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+legend { font-family: var(--font-display); font-weight: 700; margin-bottom: 8px; padding: 0; }
+
+/* home */
+.dates { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.date { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
+.date .dn { font-family: var(--font-num); font-size: 1.6rem; line-height: 1.2; }
+.date .dn small { font-family: var(--font-body); font-size: .8rem; color: var(--muted); margin-left: 4px; }
+.date .dl { font-size: .82rem; color: var(--ink-2); }
+.date.is-near .dn { color: var(--accent-ink); }
+.thesis { display: grid; gap: 6px; }
+.thesis p { color: var(--ink-2); max-width: 70ch; }
+
+.base { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; }
+.bstep { padding: 6px 18px 6px 0; min-width: 96px; }
+.bnum { font-family: var(--font-num); font-size: 1.9rem; line-height: 1.15; }
+.blabel { font-size: .8rem; color: var(--ink-2); }
+.barrow { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 16px 0 0; color: var(--muted); font-size: .78rem; }
+.barrow b { font-family: var(--font-num); font-weight: 500; color: var(--ink-2); font-size: .9rem; }
+.barrow::after { content: "→"; font-size: 1.1rem; line-height: 1; }
+.bstep.is-zero .bnum { color: var(--bad); }
+.callout { border-left: 0; background: var(--accent-soft); color: var(--ink); border-radius: var(--r); padding: 10px 14px; font-size: .88rem; }
+
+.funnel { display: grid; gap: 2px; }
+.frow { display: grid; grid-template-columns: minmax(7.5em, 10em) 1fr 3.2em; gap: 10px; align-items: center; padding: 4px 0; }
+.frow .fl { font-size: .86rem; color: var(--ink-2); }
+.track { height: 14px; background: var(--bar-track); border-radius: 0 4px 4px 0; position: relative; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+.fill.zero { min-width: 0; }
+.frow .fc { text-align: right; font-family: var(--font-num); }
+.conv { display: grid; grid-template-columns: minmax(7.5em, 10em) 1fr; gap: 10px; font-size: .78rem; color: var(--muted); padding-left: 0; }
+.conv > span:last-child { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.conv .rate { font-family: var(--font-num); color: var(--ink-2); }
+.venue { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .86rem; padding: 10px 12px; background: var(--sunk); border-radius: var(--r); }
+
+.hbars { display: grid; gap: 6px; }
+.hb { display: grid; grid-template-columns: minmax(8em, 13em) 1fr 4.6em; gap: 10px; align-items: center; font-size: .86rem; }
+.hb .hbl { color: var(--ink-2); overflow-wrap: anywhere; }
+.hb .hbv { text-align: right; font-family: var(--font-num); font-size: .8rem; color: var(--ink-2); }
+.hb.is-few .fill { opacity: .45; }
+
+.nexts { display: grid; gap: 0; }
+.nx { display: grid; grid-template-columns: 6.2em 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; width: 100%; }
+.nx:hover .nx-co { color: var(--accent-ink); }
+.nx-co { font-weight: 700; }
+.nx-tx { color: var(--ink-2); font-size: .86rem; overflow-wrap: anywhere; }
+
+/* stage meter */
+.meter { display: inline-grid; grid-template-columns: repeat(6, 10px); gap: 2px; vertical-align: middle; }
+.meter i { height: 8px; background: var(--bar-track); border-radius: 1px; }
+.meter i.on { background: var(--accent); }
+.meter.stopped i.on { background: var(--muted); }
+.meter.won i.on { background: var(--good); }
+
+/* records */
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar input[type=search] { width: auto; flex: 1 1 200px; }
+.progress { display: grid; gap: 6px; }
+.progress .track { height: 10px; border-radius: 5px; }
+.progress .fill { border-radius: 5px; }
+.rlist { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.rhead, .ritem { display: grid; grid-template-columns: minmax(10em, 1.4fr) minmax(8em, 1fr) minmax(9.5em, 1fr) minmax(10em, 1.5fr) 5.5em; gap: 12px; padding: 10px 14px; align-items: center; }
+.rhead { background: var(--sunk); font-size: .74rem; color: var(--muted); letter-spacing: .04em; }
+.ritem { border-top: 1px solid var(--line); cursor: pointer; text-align: left; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; }
+.ritem:hover { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.ritem > * { min-width: 0; overflow-wrap: anywhere; }
+.r-co { font-weight: 700; }
+.r-sub { font-size: .78rem; color: var(--muted); }
+.r-next { font-size: .84rem; color: var(--ink-2); }
+.r-date { font-size: .78rem; color: var(--muted); font-family: var(--font-num); }
+@media (max-width: 760px) {
+  .rhead { display: none; }
+  .ritem { grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .ritem .r-date { grid-column: 2; grid-row: 1; }
+  .ritem .r-c3, .ritem .r-c4 { grid-column: 1 / -1; }
+}
+
+/* sheet */
+.sheet { position: fixed; inset: 0; z-index: 50; }
+.sheet-back { position: absolute; inset: 0; background: rgba(13,17,23,.45); }
+.sheet-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(680px, 100%); background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 18px; align-content: start; box-shadow: -8px 0 32px rgba(0,0,0,.18); }
+.sheet-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.sheet-foot { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 14px; }
+.guide { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; font-size: .86rem; }
+.guide ol { margin: 6px 0 0; padding-left: 1.4em; display: grid; gap: 2px; }
+details > summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
+
+/* AI output */
+.ai-note { font-size: .8rem; color: var(--muted); }
+.ai-out { display: grid; gap: 14px; }
+.ai-status { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hyps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.hyp { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; }
+.hyp-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.hyp-q { font-size: .92rem; }
+.hyp-ev { font-size: .82rem; color: var(--ink-2); }
+.kv { display: grid; gap: 4px; }
+.kv > div { font-size: .9rem; }
+.thinking { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88rem; }
+.thinking::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .thinking::before { animation: none; } }
+.out-text { white-space: pre-wrap; font-size: .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; min-height: 120px; }
+textarea.out-text { min-height: 360px; font-family: var(--font-body); }
+
+/* brief split */
+.split { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); align-items: start; }
+.split > * { min-width: 0; }
+.cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 4px; text-align: left; cursor: pointer; width: 100%; }
+.card:hover { border-color: var(--muted); }
+.card b { font-size: .95rem; }
+
+/* story matrix */
+.mx-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table.mx { border-collapse: collapse; min-width: 980px; width: 100%; }
+.mx th, .mx td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 10px; vertical-align: top; text-align: left; }
+.mx th:last-child, .mx td:last-child { border-right: 0; }
+.mx tr:last-child td, .mx tr:last-child th { border-bottom: 0; }
+.mx thead th { background: var(--sunk); font-size: .78rem; color: var(--ink-2); font-weight: 700; }
+.mx thead th small { display: block; font-weight: 400; color: var(--muted); }
+.mx tbody th { width: 250px; font-weight: 400; }
+.mx-series { display: grid; gap: 6px; }
+.mx-series b { font-family: var(--font-display); }
+.mx-core { font-size: .8rem; color: var(--ink-2); }
+.cell { display: grid; gap: 6px; align-content: start; text-align: left; width: 100%; min-height: 84px; background: none; border: 1px dashed transparent; border-radius: 6px; padding: 6px; cursor: pointer; }
+.cell:hover { border-color: var(--line); background: var(--sunk); }
+.cell span.snip { font-size: .8rem; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* practice */
+.personas { display: grid; gap: 8px; }
+.persona { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); cursor: pointer; }
+.persona:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.persona input { margin-top: 5px; accent-color: var(--accent); }
+.persona b { display: block; }
+.persona span { font-size: .8rem; color: var(--ink-2); }
+.chat { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-height: 480px; }
+.msgs { display: grid; gap: 10px; align-content: start; overflow-y: auto; max-height: 60vh; padding: 4px; }
+.msg { max-width: 88%; padding: 8px 12px; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.hr { background: var(--surface); border: 1px solid var(--line); justify-self: start; }
+.msg.me { background: var(--accent-soft); justify-self: end; }
+.msg .who { display: block; font-size: .7rem; color: var(--muted); }
+.compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.compose textarea { min-height: 60px; }
+.scores { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+.score { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.score .sn { font-family: var(--font-num); font-size: 1.5rem; }
+.score .sn small { font-size: .8rem; color: var(--muted); }
+.dots { display: inline-grid; grid-template-columns: repeat(4, 8px); gap: 3px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--bar-track); }
+.dots i.on { background: var(--accent); }
+.plog { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow-x: auto; }
+.plog table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .85rem; }
+.plog th, .plog td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+.plog th { background: var(--sunk); font-size: .74rem; color: var(--muted); font-weight: 400; }
+.plog tr:last-child td { border-bottom: 0; }
+
+/* about */
+.panelists { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.pn { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 4px; }
+.pn .who { font-size: .78rem; color: var(--muted); }
+.pn q { quotes: "「" "」"; font-size: .9rem; }
+.plist { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.tbl { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .86rem; }
+.tbl th, .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.tbl th { background: var(--sunk); font-size: .74rem; color: var(--muted); font-weight: 400; }
+.tbl tr:last-child td { border-bottom: 0; }
+
+/* tooltip & toast */
+.tip { position: fixed; z-index: 60; pointer-events: none; background: var(--slate); color: var(--on-slate); font-size: .78rem; padding: 6px 10px; border-radius: 6px; max-width: 280px; box-shadow: var(--shadow); }
+.toast { position: fixed; z-index: 70; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--slate); color: var(--on-slate); padding: 10px 16px; border-radius: 8px; font-size: .88rem; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+.banner { font-size: .82rem; padding: 8px 12px; border-radius: var(--r); background: var(--warn-soft); color: var(--ink); }
+</style>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand"><b>勝ち筋<i>ラボ</i></b><span>架電から受注までの信頼獲得を、記録から型にする</span></div>
+    <span class="mode" id="mode">読み込み中</span>
+  </div>
+  <nav class="wrap tabs" id="tabs" aria-label="画面">
+    <a href="#home">ホーム</a>
+    <a href="#records">商談記録</a>
+    <a href="#brief">ブリーフ</a>
+    <a href="#story">ストーリー</a>
+    <a href="#practice">練習</a>
+    <a href="#about">議論と設計</a>
+  </nav>
+</header>
+<main class="wrap" id="view"></main>
+<div class="sheet" id="sheet" hidden></div>
+<div class="tip" id="tip" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ================= 定数（11/1資料とその検討資料から） ================= */
+const STAGES = [null, "接触", "有効会話", "初回商談・個別相談", "2回目", "提案", "受注"];
+const STAGE_HINT = { 1: "電話がつながった・資料を送った", 2: "相手の課題について話せた", 3: "初回商談または個別相談を実施した", 4: "2回目の商談を実施した", 5: "提案を出した", 6: "受注した" };
+const SIZES = ["〜99名", "100〜299名", "300〜999名", "1,000〜4,999名", "5,000名〜"];
+const ENTRIES = ["アイドマ様の架電", "ウェビナー・登壇", "note・連載", "紹介", "問い合わせ", "その他"];
+const THEMES = ["管理職・リーダーシップ", "次世代リーダー", "プロジェクトマネジメント", "若手・中堅の学び方", "組織開発・両利きの経営", "AI活用・DX", "その他"];
+const REASONS = ["課題が合わなかった", "予算・時期が合わない", "決裁者・社内説明に進めなかった", "他社・内製に決めた", "実績・信頼が足りないと見られた", "こちらが次の一手を出せなかった", "連絡が取れなくなった", "不明"];
+const STATUS = { open: "進行中", stopped: "止まった", won: "受注" };
+const VERDICTS = ["追う", "寝かせる", "やめる"];
+const PHASES = [
+  { id: "call", name: "架電", need: "入口の問い（相手の課題を聞く問い）を3つ。案内役としての名乗り方。" },
+  { id: "follow", name: "資料送付・フォロー", need: "フォロー架電の型。送付する記事の予告と、読んだ後に聞くこと。" },
+  { id: "first", name: "初回商談", need: "連載の視点にもとづく見立ての話の流れ。相手の課題を整理して返す言い方。次回の約束の取り方。" },
+  { id: "proposal", name: "提案", need: "この視点を研修テーマに落とす提案の筋。人事が社内説明に使える言い方。" },
+  { id: "after", name: "導入後", need: "振り返りの型。成果を事例記事にするために聞くこと。" }
+];
+const DEFAULT_SERIES = [
+  { id: "s1", name: "フリーレン×サーバント・リーダーシップ", theme: "管理職・リーダーシップ" },
+  { id: "s2", name: "両利きのマネジメント", theme: "組織開発・両利きの経営" },
+  { id: "s3", name: "石神千空×プロジェクトマネジメント", theme: "プロジェクトマネジメント" },
+  { id: "s4", name: "「学び方」", theme: "若手・中堅の学び方" },
+  { id: "s5", name: "攻殻とビジネス", theme: "AI活用・DX" }
+];
+const DEFAULT_CONFIG = {
+  webinarDate: "2026-11-24", retroDue: "2026-12-25", switchDate: "2027-01-05", retroTarget: 46,
+  targets: { venue: 20, second: 40, proposal: 50, won: 30 },
+  baseline: { calls: 12504, talks: 1637, appts: 46, won: 0 }
+};
+const RETRO_QS = [
+  "初回商談は実施できたか。こちらは誰が出たか。",
+  "相手は誰（役職）で、何に困っていたか。相手の言葉で。",
+  "何の話をしたとき、相手の反応が変わったか。",
+  "相手から出た質問・懸念は何か。",
+  "2回目に進んだか。進まなかったなら、どこで止まったと思うか。",
+  "今から連絡するとしたら、何を持っていくか。",
+  "この会社は今後も追うべきか（追う／寝かせる／やめる）。"
+];
+const PERSONAS = [
+  { id: "mfg", name: "製造業 人材開発部 部長", desc: "従業員5,000名。研修会社は既に3社と取引。慎重で、実績と社内で説明できるかを重視する。", brief: "従業員約5,000名の製造業で人材開発部の部長。研修会社とは既に3社と取引があり、新しい会社には慎重。実績、他社事例、社内（役員・現場）に説明できるかを重視する。管理職の世代交代と、現場リーダーの育成に課題を感じているが、初対面の相手にすぐには話さない。" },
+  { id: "it", name: "IT企業 人事 マネージャー", desc: "従業員800名。忙しく、時間を取られることを嫌う。管理職育成が急務で、期間と成果を具体的に聞く。", brief: "従業員約800名のIT企業で人事のマネージャー。採用と育成を兼務していて忙しい。急成長でプレイヤーから管理職になった人が多く、マネジメントの質に課題がある。話が長い相手や抽象的な話を嫌い、期間・成果・費用感を具体的に聞く。" },
+  { id: "trade", name: "中堅商社 経営企画兼人事", desc: "従業員300名。社長直下で決裁は早いが予算は小さい。次世代リーダーの育成に悩む。", brief: "従業員約300名の中堅商社で、経営企画と人事を兼ねる課長。社長と距離が近く決裁は早いが、研修予算は小さい。次の経営を担う人材が育っていないことに危機感がある。大手向けの立派な研修より、自社に合うかを気にする。" }
+];
+const SCENES = [
+  { id: "followcall", name: "フォロー架電（記事を送った後）" },
+  { id: "consult", name: "ウェビナー後の個別相談" },
+  { id: "first", name: "初回商談" }
+];
+const RUBRIC = [
+  { id: "mitate", name: "見立て", desc: "相手の課題を質問で引き出し、整理して返せたか" },
+  { id: "taito", name: "対等に話す", desc: "人材育成の言葉で、萎縮せずに話せたか（専門家のふりはしない）" },
+  { id: "teian", name: "次につなぐ", desc: "ウェビナー・個別相談・資料など、次の一手につなげたか" },
+  { id: "shinrai", name: "信頼", desc: "名乗り・約束・誠実さ。分からないことを分からないと言えたか" }
+];
+const PANEL = [
+  ["議長", "BtoB事業立ち上げのコンサルタント", "落ちている場所が分からないまま仕組み化すると、負け方が再現される。46件の振り返りが最も期限の厳しい作業。"],
+  ["人事部長", "大企業の人事部長（研修の買い手）", "人事が会う理由は、課題に刺さる・社内で説明できる・失敗しない裏付けの三つ。仮説は断定せず、質問で確かめる。"],
+  ["研修営業", "法人研修会社の営業責任者", "次年度の研修予算は冬に固まる企業が多い。11月は来年度に入れてもらう時期。"],
+  ["インサイドセールス", "架電組織の責任者", "落ちどころは通話からアポの2.8%。電話の目的を、信頼の場への誘導に絞る。"],
+  ["マーケター", "BtoBウェビナー・コンテンツ", "ウェビナーの成果はその後72時間のフォローで決まる。次の一手と期日を見えるようにする。"],
+  ["RevOps", "セールスイネーブルメント", "段階の定義を一つに。アポ数ではなく、有効な会話・個別相談・2回目で数える。"],
+  ["AI PM", "生成AIプロダクトマネージャー", "AIは下書きまで。根拠のない仮説は「不明」と書かせ、人が確かめて確認済みにする。"],
+  ["ナレッジ", "組織学習の研究者", "人が替わっても残るのは記録と型だけ。振り返りは質問を固定して1件5分で。"],
+  ["UX", "業務アプリのUXデザイナー", "必須は会社名・段階・次の一手の三つ。30秒で書けないと2週間で止まる。"],
+  ["投資家", "事業投資家", "受注0件で作り込まない。3月末に個別相談→2回目が20%未満なら、狙う層を見直す。"]
+];
+const COLS = ["deals", "briefs", "series", "story", "practice", "insights", "onepagers", "config"];
+
+/* ================= ユーティリティ ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
+const pad = (n) => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+const daysUntil = (ds) => { if (!ds) return null; const t = Date.parse(ds + "T00:00:00"); if (isNaN(t)) return null; const n = Date.parse(todayStr() + "T00:00:00"); return Math.round((t - n) / 86400000); };
+const md = (ds) => { if (!ds) return ""; const [, m, d] = ds.split("-"); return Number(m) + "/" + Number(d); };
+const fmtDate = (iso) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(d)) return ""; return (d.getMonth() + 1) + "/" + d.getDate(); };
+const newId = (p) => p + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : null);
+const opts = (arr, sel, blank) => (blank !== undefined ? `<option value="">${esc(blank)}</option>` : "") + arr.map((v) => `<option ${v === sel ? "selected" : ""}>${esc(v)}</option>`).join("");
+const arr = (x) => (Array.isArray(x) ? x.filter((v) => v !== null && v !== undefined).map((v) => (typeof v === "object" ? v : String(v))) : x ? [String(x)] : []);
+const str = (x) => (x === null || x === undefined ? "" : typeof x === "string" ? x : String(x));
+function normBrief(r) {
+  r = r && typeof r === "object" ? r : {};
+  return {
+    summary: str(r.summary),
+    hypotheses: arr(r.hypotheses).filter((h) => typeof h === "object").slice(0, 3).map((h) => ({ issue: str(h.issue), evidence: str(h.evidence), confidence: str(h.confidence), question: str(h.question) })),
+    series: r.series && typeof r.series === "object" ? { id: str(r.series.id), name: str(r.series.name), why: str(r.series.why), angle: str(r.series.angle) } : null,
+    opener: str(r.opener), avoid: arr(r.avoid).map(str), factcheck: arr(r.factcheck).map(str), goal: str(r.goal)
+  };
+}
+function normInsight(r) {
+  r = r && typeof r === "object" ? r : {};
+  return {
+    stuck: str(r.stuck),
+    hypotheses: arr(r.hypotheses).filter((h) => typeof h === "object").slice(0, 3).map((h) => ({ who: str(h.who), what: str(h.what), entry: str(h.entry), evidence: str(h.evidence), confidence: str(h.confidence) })),
+    bets: arr(r.bets).filter((b) => typeof b === "object").slice(0, 3).map((b) => ({ company: str(b.company), why: str(b.why), who_joins: str(b.who_joins) })),
+    missing: arr(r.missing).map(str).slice(0, 6)
+  };
+}
+const clip = (s, n) => { s = String(s || ""); return s.length > n ? s.slice(0, n) + "…" : s; };
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 3200);
+}
+async function copyText(text, label) {
+  try { await navigator.clipboard.writeText(text); toast((label || "") + "コピーしました"); }
+  catch (e) {
+    openSheet(`<div class="sheet-head"><h2>手動でコピーしてください</h2><button class="btn ghost sm" data-act="close">閉じる</button></div>
+      <p class="small muted">この画面ではクリップボードに書き込めませんでした。下の文を選択してコピーしてください。</p>
+      <textarea id="manual-copy" class="out-text" readonly>${esc(text)}</textarea>`);
+    const ta = $("#manual-copy"); ta.focus(); ta.select();
+  }
+}
+
+/* ================= データ（共有DB／この端末） ================= */
+const S = { loaded: {}, slow: false, err: null };
+COLS.forEach((c) => { S[c] = []; });
+
+const Store = {
+  mode: "loading", db: null, user: null, uid: null, canWrite: null,
+  async init() {
+    let db = null, user = null;
+    if (window.claude && typeof window.claude.use === "function") {
+      try { [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]); } catch (e) { /* 使えない環境 */ }
+    }
+    this.user = user;
+    if (user) {
+      try { this.uid = await user.id(); } catch (e) { this.uid = null; }
+      try { this.canWrite = await user.can("data.write"); } catch (e) { this.canWrite = null; }
+    }
+    if (db) { this.mode = "db"; this.db = db; COLS.forEach((c) => this.sub(c)); }
+    else {
+      this.mode = "local";
+      COLS.forEach((c) => { S[c] = localLoad(c); S.loaded[c] = true; });
+      onData();
+    }
+    renderMode();
+  },
+  sub(c) {
+    const timer = setTimeout(() => { if (!S.loaded[c]) { S.slow = true; renderMode(); } }, 10000);
+    this.db.collection(c).onSnapshot((snap) => {
+      if (!snap.metadata.fromCache) { clearTimeout(timer); if (S.slow) { S.slow = false; renderMode(); } }
+      S[c] = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      S.loaded[c] = true; onData(c);
+    }, (err) => { clearTimeout(timer); S.err = err && err.code; S.loaded[c] = true; renderMode(); onData(c); });
+  },
+  async put(c, id, data) {
+    const now = new Date().toISOString();
+    const prev = S[c].find((x) => x.id === id);
+    const body = Object.assign({}, data, { updatedAt: now, updatedBy: this.uid || null });
+    delete body.id;
+    if (!prev) { body.createdAt = body.createdAt || now; body.by = body.by || this.uid || null; }
+    else { body.createdAt = prev.createdAt || now; body.by = prev.by || null; }
+    if (this.mode === "db") {
+      try { await this.db.collection(c).doc(id).set(body); }
+      catch (e) { throw new Error(dbErr(e)); }
+    } else {
+      S[c] = S[c].filter((x) => x.id !== id).concat([Object.assign({ id }, body)]);
+      localSave(c); onData(c);
+    }
+    return id;
+  },
+  async del(c, id) {
+    if (this.mode === "db") {
+      try { await this.db.collection(c).doc(id).delete(); } catch (e) { throw new Error(dbErr(e)); }
+    } else { S[c] = S[c].filter((x) => x.id !== id); localSave(c); onData(c); }
+  }
+};
+function dbErr(e) {
+  const code = e && e.code;
+  if (code === "invalid_argument") return "保存できませんでした。このアプリへの書き込み権限がないか、内容が大きすぎます。";
+  if (code === "quota_exceeded") return "保存できる件数・容量の上限に達しました。古い記録を整理してください。";
+  if (code === "resource_exhausted") return "操作が続いたため一時的に保存できませんでした。少し待ってからもう一度。";
+  if (code === "revoked") return "このアプリへのアクセスが変わったため保存できません。";
+  return "保存できませんでした。通信状態を確かめて、もう一度試してください。";
+}
+function localLoad(c) { try { const v = localStorage.getItem("kachisuji:" + c); return v ? JSON.parse(v) : []; } catch (e) { return []; } }
+function localSave(c) { try { localStorage.setItem("kachisuji:" + c, JSON.stringify(S[c])); } catch (e) { toast("この端末に保存できませんでした"); } }
+
+function renderMode() {
+  const m = $("#mode");
+  m.classList.remove("is-db", "is-local");
+  if (Store.mode === "db") {
+    m.classList.add("is-db");
+    m.textContent = S.err ? "共有データに接続できません" : S.slow ? "共有データの応答待ち" : Store.canWrite === false ? "閲覧のみ（共有）" : "チームで共有中";
+  } else if (Store.mode === "local") { m.classList.add("is-local"); m.textContent = "この端末だけに保存"; }
+  else m.textContent = "読み込み中";
+}
+
+const cfg = () => {
+  const c = S.config.find((x) => x.id === "main") || {};
+  return Object.assign({}, DEFAULT_CONFIG, c, { targets: Object.assign({}, DEFAULT_CONFIG.targets, c.targets || {}), baseline: DEFAULT_CONFIG.baseline });
+};
+const seriesList = () => {
+  const map = new Map(S.series.map((s) => [s.id, s]));
+  const out = DEFAULT_SERIES.map((d) => Object.assign({}, d, map.get(d.id) || {}));
+  S.series.forEach((s) => { if (!DEFAULT_SERIES.some((d) => d.id === s.id)) out.push(s); });
+  return out.filter((s) => !s.archived);
+};
+const seriesName = (id) => (seriesList().find((s) => s.id === id) || {}).name || "";
+const byNewest = (a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || ""));
+
+/* 名前の表示：IDだけを保存し、表示のたびに解決する */
+async function paintNames(root) {
+  const els = $$("[data-uid]", root || document);
+  if (!els.length) return;
+  if (!Store.user) { els.forEach((el) => { el.textContent = Store.mode === "local" ? "この端末" : "—"; }); return; }
+  const ids = Array.from(new Set(els.map((el) => el.dataset.uid).filter(Boolean)));
+  let ps = {};
+  try { ps = await Store.user.profiles(ids); } catch (e) { ps = {}; }
+  els.forEach((el) => { const p = ps[el.dataset.uid]; el.textContent = (p && p.name) || (el.dataset.uid ? "メンバー" : "—"); });
+}
+const who = (id) => `<span data-uid="${esc(id || "")}">—</span>`;
+
+/* ================= AI（Claude） ================= */
+const AI = { fn: null, state: "loading" };
+async function initAI() {
+  if (!(window.claude && typeof window.claude.use === "function")) { AI.state = "off"; paintAI(); return; }
+  try { AI.fn = await window.claude.use("sample"); } catch (e) { AI.fn = null; }
+  AI.state = AI.fn ? "on" : "off"; paintAI();
+}
+function paintAI() {
+  $$("[data-ai]").forEach((b) => { b.disabled = AI.state !== "on" || b.dataset.busy === "1"; });
+  $$("[data-ai-note]").forEach((n) => {
+    n.hidden = AI.state === "on";
+    n.textContent = AI.state === "loading" ? "AIの準備中…" : "AIは、このアプリをClaudeの中で開いたときに使えます。ここでは「プロンプトをコピー」してClaudeに貼れば、同じ下書きがつくれます。";
+  });
+}
+function aiErr(e) {
+  const code = e && e.code;
+  if (code === "cancelled") return null;
+  if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(code)) { AI.state = "off"; paintAI(); return "AIの利用が許可されていません。「プロンプトをコピー」をお使いください。"; }
+  if (code === "rate_limited") return "AIが混み合っています。少し待ってから、もう一度押してください。";
+  if (code === "refused") return "この入力ではAIが答えられませんでした。内容を見直してください。";
+  if (code === "invalid_json") return "AIの答えの形が崩れました。もう一度押してください。";
+  if (code === "prompt_too_large") return "入力が長すぎます。貼り付けた情報を短くしてください。";
+  if (code === "session_expired") return "Claudeへのログインが切れています。ログインし直してください。";
+  return "AIとの接続が途中で切れました。もう一度押してください。";
+}
+async function aiJSON(prompt, tier) { return AI.fn.json(prompt, { modelTier: tier || "default" }); }
+
+function aiButtons(act, label, copyAct) {
+  return `<div class="row"><button class="btn primary" type="button" data-ai data-act="${act}">${esc(label)}</button>
+    <button class="btn" type="button" data-act="${copyAct}">プロンプトをコピー</button></div>
+    <p class="ai-note" data-ai-note hidden></p>`;
+}
+
+/* ================= 集計 ================= */
+function stats(deals) {
+  const reached = [0, 0, 0, 0, 0, 0, 0];
+  deals.forEach((d) => { const s = Number(d.stage) || 1; for (let i = 1; i <= s && i <= 6; i++) reached[i]++; });
+  const venue = deals.filter((d) => d.venue);
+  const venueConsult = venue.filter((d) => (Number(d.stage) || 1) >= 3).length;
+  const stopped = deals.filter((d) => d.status === "stopped");
+  const reasons = {};
+  stopped.forEach((d) => { const r = d.reason || "不明"; reasons[r] = (reasons[r] || 0) + 1; });
+  return { n: deals.length, reached, venueN: venue.length, venueConsult, stopped: stopped.length, reasons, won: deals.filter((d) => d.status === "won" || Number(d.stage) === 6).length };
+}
+function compare(deals, key) {
+  const base = deals.filter((d) => (Number(d.stage) || 1) >= 3);
+  const groups = new Map();
+  base.forEach((d) => {
+    let g = key === "venue" ? (d.venue ? "信頼の場を経由" : "経由していない") : (d[key] || "未記入");
+    if (!groups.has(g)) groups.set(g, { n: 0, k: 0 });
+    const o = groups.get(g); o.n++; if ((Number(d.stage) || 1) >= 4) o.k++;
+  });
+  return Array.from(groups.entries()).map(([g, o]) => ({ g, n: o.n, k: o.k, r: pct(o.k, o.n) })).sort((a, b) => b.n - a.n);
+}
+function stageMeter(d) {
+  const s = Number(d.stage) || 1; const cls = d.status === "stopped" ? "stopped" : (d.status === "won" || s === 6) ? "won" : "";
+  let h = `<span class="meter ${cls}" aria-hidden="true">`; for (let i = 1; i <= 6; i++) h += `<i class="${i <= s ? "on" : ""}"></i>`; return h + "</span>";
+}
+function statusChip(d) {
+  if (d.status === "won" || Number(d.stage) === 6) return `<span class="chip good">受注</span>`;
+  if (d.status === "stopped") return `<span class="chip">止まった${d.reason ? "：" + esc(d.reason) : ""}</span>`;
+  return `<span class="chip accent">進行中</span>`;
+}
+function dueChip(due) {
+  const n = daysUntil(due);
+  if (n === null) return `<span class="chip">期日なし</span>`;
+  if (n < 0) return `<span class="chip bad">期限切れ ${-n}日</span>`;
+  if (n === 0) return `<span class="chip warn">今日</span>`;
+  if (n <= 3) return `<span class="chip warn">あと${n}日</span>`;
+  return `<span class="chip">${md(due)}</span>`;
+}
+function rateChip(k, n, target) {
+  if (n < 3) return `<span class="chip">件数が少ない</span>`;
+  const r = pct(k, n);
+  return r >= target ? `<span class="chip good">目標${target}%以上</span>` : `<span class="chip warn">目標${target}%未満</span>`;
+}
+
+/* ================= 画面：ホーム ================= */
+const Home = {
+  cmpKey: "entry", busy: false,
+  render() {
+    return `
+    <section class="thesis">
+      <h1>1月を境に、信頼獲得がメカニズムとして回る体制へ</h1>
+      <p>勝った型はまだない。だから、商談を同じ形で記録し、どこで止まるかを見て、勝ち筋の仮説をつくる。勝てた型は「ストーリー」に流し込み、インターンが練習して使う。</p>
+    </section>
+    <section class="dates" id="h-dates" aria-label="期限"></section>
+    <section class="block">
+      <div class="block-head"><h2>これまで</h2><span class="src">出典：11/1資料</span></div>
+      <div id="h-base"></div>
+    </section>
+    <div class="grid2">
+      <section class="block">
+        <div class="block-head"><h2>これから：信頼の指標</h2><span class="src">商談記録から集計・目標は仮置き</span></div>
+        <div id="h-funnel"></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>次の一手</h2><a href="#records" class="small">すべての記録</a></div>
+        <div id="h-next"></div>
+      </section>
+    </div>
+    <div class="grid2">
+      <section class="block">
+        <div class="block-head"><h2>止まった理由</h2><span class="src">状態が「止まった」の記録</span></div>
+        <div id="h-reasons"></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>どこで勝てそうか</h2><span class="src">初回商談から2回目に進んだ割合</span></div>
+        <div class="seg" id="h-cmp-seg" role="group" aria-label="比べる軸">
+          <button type="button" data-cmp="entry">入口</button><button type="button" data-cmp="venue">信頼の場</button><button type="button" data-cmp="size">規模</button><button type="button" data-cmp="theme">テーマ</button>
+        </div>
+        <div id="h-cmp"></div>
+      </section>
+    </div>
+    <section class="block">
+      <div class="block-head"><h2>勝ち筋の仮説</h2><span class="src">記録からAIが下書き → 人が確かめる</span></div>
+      <div id="h-insight"></div>
+    </section>`;
+  },
+  refresh() {
+    const c = cfg(); const deals = S.deals; const st = stats(deals);
+    const retroN = deals.filter((d) => d.source === "retro").length;
+    const dates = [
+      { d: c.webinarDate, l: "ウェビナー（最初の信頼の場）" },
+      { d: c.retroDue, l: `柳沼さんとの振り返り期限　${retroN}／${c.retroTarget}件` },
+      { d: c.switchDate, l: "1月以降の体制へ" }
+    ];
+    $("#h-dates").innerHTML = dates.map((x) => {
+      const n = daysUntil(x.d);
+      const label = n === null ? "—" : n > 0 ? `${n}<small>日後</small>` : n === 0 ? `今日` : `${-n}<small>日経過</small>`;
+      return `<div class="date ${n !== null && n >= 0 && n <= 21 ? "is-near" : ""}"><span class="dn">${label}</span><span class="dl">${esc(md(x.d))}　${esc(x.l)}</span></div>`;
+    }).join("");
+
+    const b = c.baseline;
+    $("#h-base").innerHTML = `
+      <div class="base" role="list">
+        <div class="bstep" role="listitem"><div class="bnum">${b.calls.toLocaleString()}</div><div class="blabel">架電</div></div>
+        <div class="barrow" aria-hidden="true"><b>${pct(b.talks, b.calls)}%</b></div>
+        <div class="bstep" role="listitem"><div class="bnum">${b.talks.toLocaleString()}</div><div class="blabel">対象者と通話</div></div>
+        <div class="barrow" aria-hidden="true"><b>${pct(b.appts, b.talks)}%</b></div>
+        <div class="bstep" role="listitem"><div class="bnum">${b.appts}</div><div class="blabel">アポ</div></div>
+        <div class="barrow" aria-hidden="true"><b>${pct(b.won, b.appts)}%</b></div>
+        <div class="bstep is-zero" role="listitem"><div class="bnum">${b.won}</div><div class="blabel">受注</div></div>
+      </div>
+      <p class="callout">アポ46件のうち、初回商談を何件実施し、何件が2回目に進み、どこで止まったかの記録がない。柳沼さんの在籍中に<a href="#records">振り返り</a>で埋める（${retroN}／${c.retroTarget}件）。</p>`;
+
+    // funnel
+    if (!st.n) {
+      $("#h-funnel").innerHTML = `<div class="empty"><b>まだ記録がありません。</b><br>「商談記録」で1件目を記録すると、段階ごとの件数と、目標（仮置き）との差がここに出ます。必須は会社名・段階・次の一手の三つです。<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="new-deal">＋ 記録する</button><button class="btn sm" data-act="new-retro">＋ 振り返りを記録</button></div></div>`;
+    } else {
+      const max = st.reached[1] || 1; const t = c.targets;
+      const convT = { 4: t.second, 5: t.proposal, 6: t.won };
+      let h = `<div class="funnel">`;
+      for (let s = 1; s <= 6; s++) {
+        const k = st.reached[s];
+        if (s > 1) {
+          const n = st.reached[s - 1]; const r = pct(k, n);
+          h += `<div class="conv"><span></span><span><span class="rate">↓ ${r === null ? "—" : r + "%"}</span>${convT[s] ? rateChip(k, n, convT[s]) : ""}</span></div>`;
+        }
+        h += `<div class="frow" data-tip="${esc(STAGES[s])}：${k}件（${esc(STAGE_HINT[s])}）"><span class="fl">${esc(STAGES[s])}</span><span class="track"><span class="fill ${k ? "" : "zero"}" style="width:${(k / max) * 100}%"></span></span><span class="fc">${k}</span></div>`;
+      }
+      h += `</div>`;
+      const vr = pct(st.venueConsult, st.venueN);
+      h += `<div class="venue"><span>信頼の場（ウェビナー・登壇）を経由 <b class="num">${st.venueN}</b>件 → 個別相談 <b class="num">${st.venueConsult}</b>件</span><span class="num">${vr === null ? "" : vr + "%"}</span>${st.venueN ? rateChip(st.venueConsult, st.venueN, t.venue) : `<span class="chip">まだ記録なし</span>`}</div>`;
+      $("#h-funnel").innerHTML = h;
+    }
+
+    // next actions
+    const nx = deals.filter((d) => d.status !== "stopped" && d.status !== "won" && Number(d.stage) !== 6 && d.next)
+      .sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 8);
+    $("#h-next").innerHTML = nx.length ? `<div class="nexts">${nx.map((d) => `
+      <button class="nx" type="button" data-act="open-deal" data-id="${esc(d.id)}">
+        <span>${dueChip(d.due)}</span>
+        <span><span class="nx-co">${esc(d.company)}</span><br><span class="nx-tx">${esc(d.next)}</span></span>
+        <span>${stageMeter(d)}</span>
+      </button>`).join("")}</div>`
+      : `<div class="empty"><b>次の一手はまだありません。</b><br>記録に「次の一手」と期日を入れると、期日の近い順にここへ並びます。11/24の参加者は当日中に記録し、72時間以内の一手を入れてください。</div>`;
+
+    // reasons
+    const rs = Object.entries(st.reasons).sort((a, b) => b[1] - a[1]);
+    if (!rs.length) $("#h-reasons").innerHTML = `<div class="empty">止まった記録が入ると、理由ごとの件数が出ます。「不明」が多いこと自体が、振り返りの必要を示します。</div>`;
+    else {
+      const mx = rs[0][1];
+      $("#h-reasons").innerHTML = `<div class="hbars">${rs.map(([r, n]) => `<div class="hb" data-tip="${esc(r)}：${n}件（止まった${st.stopped}件の${pct(n, st.stopped)}%）"><span class="hbl">${esc(r)}</span><span class="track"><span class="fill" style="width:${(n / mx) * 100}%"></span></span><span class="hbv">${n}件</span></div>`).join("")}</div>`;
+    }
+
+    // compare
+    $$("#h-cmp-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cmp === Home.cmpKey)));
+    const rows = compare(deals, Home.cmpKey);
+    $("#h-cmp").innerHTML = rows.length ? `<div class="hbars">${rows.map((o) => `<div class="hb ${o.n < 3 ? "is-few" : ""}" data-tip="${esc(o.g)}：初回商談${o.n}件のうち2回目へ${o.k}件${o.n < 3 ? "（件数が少なく、まだ判断できない）" : ""}"><span class="hbl">${esc(o.g)}</span><span class="track"><span class="fill ${o.k ? "" : "zero"}" style="width:${o.r || 0}%"></span></span><span class="hbv">${o.r}%<br><span class="muted">${o.k}/${o.n}</span></span></div>`).join("")}</div><p class="small muted">薄い棒は3件未満。誰に・何を・どの入口で勝てるかは、記録が20件ほどたまってから判断する。</p>`
+      : `<div class="empty">初回商談・個別相談まで進んだ記録が入ると、入口・規模・テーマごとに2回目へ進んだ割合を比べられます。</div>`;
+
+    // insight
+    const ins = S.insights.slice().sort(byNewest)[0];
+    let ih = "";
+    if (ins && ins.result) ih += renderInsight(ins);
+    else ih += `<div class="empty">記録がたまったら、AIが「どこで止まっているか」「誰に・何を・どの入口で」の仮説と、勝負案件の候補を下書きします。下書きは人が確かめてから使います。${st.n < 10 ? `<br><span class="small muted">いまの記録は${st.n}件。10件未満の仮説は確からしさが低くなります。</span>` : ""}</div>`;
+    ih += `<div class="stack" style="margin-top:12px">${aiButtons("run-insight", "記録から勝ち筋の仮説を出す", "copy-insight")}<div id="h-insight-live">${Home.busy ? `<span class="thinking">記録を読んでいます（1分ほど）</span>` : ""}</div></div>`;
+    $("#h-insight").innerHTML = ih;
+    if (Home.busy) { const b = $("[data-act=run-insight]"); if (b) b.dataset.busy = "1"; }
+    paintAI(); paintNames($("#h-insight"));
+  }
+};
+function renderInsight(ins) {
+  const r = ins.result || {};
+  const hy = (r.hypotheses || []).map((h) => `<li class="hyp"><div class="hyp-head"><span class="chip ${confCls(h.confidence)}">確からしさ ${esc(h.confidence || "—")}</span><strong>${esc(h.who)}に／${esc(h.what)}を／${esc(h.entry)}で</strong></div><div class="hyp-ev"><span class="lbl">記録上の根拠</span>${esc(h.evidence)}</div></li>`).join("");
+  const bets = (r.bets || []).map((b) => `<li><b>${esc(b.company)}</b>：${esc(b.why)}${b.who_joins ? `<span class="muted">（出る人：${esc(b.who_joins)}）</span>` : ""}</li>`).join("");
+  const miss = (r.missing || []).map((m) => `<li>${esc(m)}</li>`).join("");
+  return `<div class="ai-out panel">
+    <div class="ai-status">${ins.status === "checked" ? `<span class="chip good">確認済み</span><span class="small muted">確かめた人：${who(ins.checkedBy)}</span>` : `<span class="chip warn">AIの下書き</span>`}<span class="small muted">${fmtDate(ins.createdAt)}・記録${ins.n || 0}件から</span></div>
+    ${r.stuck ? `<div class="kv"><span class="lbl">どこで止まっているか</span><div>${esc(r.stuck)}</div></div>` : ""}
+    ${hy ? `<ul class="hyps">${hy}</ul>` : ""}
+    ${bets ? `<div class="kv"><span class="lbl">勝負案件の候補（講師・渡辺さんが要所で出てでも取る）</span><ul class="plist">${bets}</ul></div>` : ""}
+    ${miss ? `<div class="kv"><span class="lbl">記録に足りない情報</span><ul class="plist">${miss}</ul></div>` : ""}
+    ${ins.status !== "checked" ? `<div class="row"><button class="btn sm" data-act="check-insight" data-id="${esc(ins.id)}">中身を確かめた（確認済みにする）</button></div>` : ""}
+  </div>`;
+}
+const confCls = (c) => (c === "高" ? "good" : c === "中" ? "warn" : "");
+
+function insightPrompt() {
+  const c = cfg(); const st = stats(S.deals);
+  const rows = S.deals.map((d) => ({
+    会社: d.company, 規模: d.size || "", 業種: d.industry || "", 相手: d.role || "", 入口: d.entry || "", 信頼の場: d.venue ? "経由" : "", テーマ: d.theme || "",
+    段階: STAGES[Number(d.stage) || 1], 状態: STATUS[d.status] || "進行中", 止まった理由: d.reason || "", 相手の課題: clip(d.pain, 200), 質問懸念: clip(d.questions, 200),
+    刺さった話: clip([seriesName(d.hookSeries), d.hook].filter(Boolean).join("：") , 200), 追うべきか: d.verdict || "", 振り返り: d.source === "retro" ? "柳沼さん" : ""
+  }));
+  return `あなたは法人研修事業の立ち上げを支えるアナリストです。下の商談記録から「勝ち筋の仮説」を下書きします。
+
+# 前提
+- 研修会社。架電12,504件→通話1,637件→アポ46件→受注0件（11/1資料）。勝った型はまだない。
+- 1月以降は、経験者が抜け、代表は営業に関われない。信頼獲得を「1対多の信頼の場（ウェビナー・登壇）」と、noteの連載を核にした一本のストーリーで回す方針。
+- 段階の定義：接触→有効会話→初回商談・個別相談→2回目→提案→受注。
+- 目標（仮置き）：信頼の場→個別相談${c.targets.venue}%、個別相談→2回目${c.targets.second}%、2回目→提案${c.targets.proposal}%、提案→受注${c.targets.won}%。
+
+# 集計
+記録${st.n}件。段階に到達した件数：${[1, 2, 3, 4, 5, 6].map((s) => STAGES[s] + st.reached[s]).join("、")}。信頼の場を経由${st.venueN}件（うち個別相談${st.venueConsult}件）。止まった${st.stopped}件。
+
+# 商談記録（JSON）
+${JSON.stringify(rows)}
+
+# 守ること
+- 記録に書かれていることだけを根拠にする。根拠には件数を入れる（例：「初回商談6件中4件が2回目へ」）。
+- 件数が少ないときは、確からしさを「低」にし、そう書く。
+- 「誰に」は規模・業種・相手の役職、「何を」は研修テーマ、「どの入口で」は入口と信頼の場で表す。
+- 勝負案件は、記録の中の会社から最大3つ。進行中で、追う価値のあるもの。
+
+# 出力
+次のJSONだけを返す。
+{"stuck":"どこで止まっているか（2〜3文）","hypotheses":[{"who":"誰に","what":"何を","entry":"どの入口で","evidence":"記録上の根拠（件数つき）","confidence":"高|中|低"}],"bets":[{"company":"会社名","why":"理由","who_joins":"パートナー講師|渡辺さん|両方"}],"missing":["次に記録すべき情報"]}
+hypothesesは最大3つ。`;
+}
+
+/* ================= 画面：商談記録 ================= */
+const Records = {
+  filter: "all", q: "",
+  render() {
+    return `
+    <section class="spread"><div class="stack" style="gap:4px"><h1>商談記録</h1><p class="lead">全員が同じ形で記録する。必須は会社名・段階・次の一手の三つ。個人名は書かず、役職だけにする。</p></div></section>
+    <section class="panel progress" id="r-retro"></section>
+    <section class="toolbar">
+      <button class="btn primary" data-act="new-deal">＋ 記録する</button>
+      <button class="btn" data-act="new-retro">＋ 振り返りを記録（46件）</button>
+      <input type="search" id="r-q" placeholder="会社名・課題・メモで探す" value="${esc(Records.q)}" aria-label="記録を探す">
+      <div class="seg" id="r-filter" role="group" aria-label="絞り込み">
+        <button type="button" data-f="all">すべて</button><button type="button" data-f="open">進行中</button><button type="button" data-f="stopped">止まった</button><button type="button" data-f="won">受注</button><button type="button" data-f="retro">振り返り</button>
+      </div>
+      <button class="btn ghost" data-act="export-csv">CSVで書き出す</button>
+    </section>
+    <section id="r-list"></section>`;
+  },
+  refresh() {
+    const c = cfg(); const retro = S.deals.filter((d) => d.source === "retro");
+    const n = retro.length; const left = daysUntil(c.retroDue);
+    $("#r-retro").innerHTML = `<div class="spread"><b>柳沼さんとの振り返り</b><span class="small muted">期限 ${esc(md(c.retroDue))}${left !== null ? (left >= 0 ? `（あと${left}日）` : `（${-left}日経過）`) : ""}</span></div>
+      <div class="track" data-tip="振り返り済み ${n}／${c.retroTarget}件"><span class="fill ${n ? "" : "zero"}" style="width:${Math.min(100, (n / (c.retroTarget || 46)) * 100)}%"></span></div>
+      <div class="small muted"><span class="num">${n}／${c.retroTarget}</span>件。1件5分、質問は7つに固定。初回商談の実施・2回目・止まった理由を知っているのは今だけ。</div>`;
+    $$("#r-filter button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === Records.filter)));
+    const q = Records.q.trim().toLowerCase();
+    let list = S.deals.slice().sort(byNewest);
+    if (Records.filter === "retro") list = list.filter((d) => d.source === "retro");
+    else if (Records.filter === "won") list = list.filter((d) => d.status === "won" || Number(d.stage) === 6);
+    else if (Records.filter !== "all") list = list.filter((d) => (d.status || "open") === Records.filter && Number(d.stage) !== 6);
+    if (q) list = list.filter((d) => [d.company, d.pain, d.memo, d.questions, d.industry, d.next].join(" ").toLowerCase().includes(q));
+    if (!S.deals.length) {
+      $("#r-list").innerHTML = `<div class="empty"><b>まだ記録がありません。</b><br>まず柳沼さんと46件を振り返り、「振り返りを記録」から1件ずつ入れてください。これからの商談は「記録する」から。11/24ウェビナーの参加者も、当日中に記録します。</div>`;
+      return;
+    }
+    if (!list.length) { $("#r-list").innerHTML = `<div class="empty">条件に合う記録はありません。</div>`; return; }
+    $("#r-list").innerHTML = `<div class="rlist">
+      <div class="rhead"><span>会社</span><span>入口</span><span>段階</span><span>次の一手</span><span>更新</span></div>
+      ${list.map((d) => `<button class="ritem" type="button" data-act="open-deal" data-id="${esc(d.id)}">
+        <span><span class="r-co">${esc(d.company)}</span>${d.source === "retro" ? ` <span class="chip solid">振り返り</span>` : ""}<br><span class="r-sub">${esc([d.size, d.industry, d.role].filter(Boolean).join("・") || "—")}</span></span>
+        <span class="r-c3 r-sub">${esc(d.entry || "—")}${d.venue ? `<br><span class="chip accent">信頼の場</span>` : ""}</span>
+        <span class="r-c3">${stageMeter(d)} <span class="small">${esc(STAGES[Number(d.stage) || 1])}</span><br>${statusChip(d)}</span>
+        <span class="r-c4 r-next">${d.next ? esc(d.next) + "<br>" + dueChip(d.due) : "—"}</span>
+        <span class="r-date">${fmtDate(d.updatedAt)}</span>
+      </button>`).join("")}
+    </div><p class="small muted" style="margin-top:8px">${list.length}件を表示</p>`;
+  }
+};
+
+function dealForm(d) {
+  const retro = d.source === "retro";
+  const sl = seriesList();
+  return `<form id="deal-form" class="stack" autocomplete="off" novalidate>
+    <div class="sheet-head"><div><h2>${d.id ? "記録を編集" : retro ? "振り返りを記録" : "記録する"}</h2><p class="small muted">${retro ? "柳沼さんに7つの質問で聞き、1件5分で残す" : "30秒で書ける3項目から"}</p></div><button class="btn ghost sm" type="button" data-act="close">閉じる</button></div>
+    ${retro ? `<div class="guide"><b>振り返りで聞くこと</b><ol>${RETRO_QS.map((q) => `<li>${esc(q)}</li>`).join("")}</ol></div>` : ""}
+    <fieldset>
+      <legend>必須</legend>
+      <label class="field"><span>会社名<em>必須</em></span><input type="text" id="f-company" value="${esc(d.company)}" required maxlength="80"></label>
+      <label class="field"><span>どこまで進んだか<em>必須</em></span><select id="f-stage">${[1, 2, 3, 4, 5, 6].map((s) => `<option value="${s}" ${Number(d.stage) === s ? "selected" : ""}>${esc(STAGES[s])}：${esc(STAGE_HINT[s])}</option>`).join("")}</select></label>
+      <label class="field"><span>次の一手</span><input type="text" id="f-next" value="${esc(d.next)}" placeholder="例：送付した記事の感想を聞き、個別相談に誘う" maxlength="160"></label>
+      <div class="fgrid"><label class="field"><span>次の一手の期日</span><input type="date" id="f-due" value="${esc(d.due)}"></label></div>
+    </fieldset>
+    <fieldset>
+      <legend>状態</legend>
+      <div class="fgrid">
+        <label class="field"><span>状態</span><select id="f-status">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${(d.status || "open") === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+        <label class="field" id="f-reason-wrap"><span>止まった理由</span><select id="f-reason">${opts(REASONS, d.reason, "選ぶ")}</select></label>
+        ${retro ? `<label class="field"><span>今後も追うべきか</span><select id="f-verdict">${opts(VERDICTS, d.verdict, "選ぶ")}</select></label>` : ""}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>相手と入口</legend>
+      <div class="fgrid">
+        <label class="field"><span>規模</span><select id="f-size">${opts(SIZES, d.size, "選ぶ")}</select></label>
+        <label class="field"><span>業種</span><input type="text" id="f-industry" value="${esc(d.industry)}" placeholder="例：製造業" maxlength="40"></label>
+        <label class="field"><span>相手の役職</span><input type="text" id="f-role" value="${esc(d.role)}" placeholder="例：人材開発部 課長（個人名は書かない）" maxlength="60"></label>
+        <label class="field"><span>入口</span><select id="f-entry">${opts(ENTRIES, d.entry, "選ぶ")}</select></label>
+        <label class="field"><span>研修テーマ</span><select id="f-theme">${opts(THEMES, d.theme, "選ぶ")}</select></label>
+      </div>
+      <label class="check"><input type="checkbox" id="f-venue" ${d.venue ? "checked" : ""}> 信頼の場（ウェビナー・登壇）に参加した</label>
+    </fieldset>
+    <fieldset>
+      <legend>中身（勝ち筋の材料）</legend>
+      <label class="field"><span>相手の課題（相手の言葉のまま）</span><textarea id="f-pain" rows="2" placeholder="例：「課長になった途端にプレイヤーに戻ってしまう」">${esc(d.pain)}</textarea></label>
+      <label class="field"><span>出た質問・懸念</span><textarea id="f-questions" rows="2" placeholder="例：他社の実績は？ 効果はどう測る？">${esc(d.questions)}</textarea></label>
+      <div class="fgrid">
+        <label class="field"><span>刺さった連載</span><select id="f-hookSeries"><option value="">なし・不明</option>${sl.map((s) => `<option value="${esc(s.id)}" ${d.hookSeries === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+      </div>
+      <label class="field"><span>刺さった話・反応が変わった瞬間</span><textarea id="f-hook" rows="2">${esc(d.hook)}</textarea></label>
+      <label class="field"><span>メモ</span><textarea id="f-memo" rows="2">${esc(d.memo)}</textarea></label>
+    </fieldset>
+    <div class="sheet-foot">
+      <div class="row">${d.id ? `<button class="btn danger" type="button" data-act="del-deal" data-id="${esc(d.id)}">削除</button>` : ""}
+        ${d.id ? `<button class="btn sm" type="button" data-act="deal-to-brief" data-id="${esc(d.id)}">ブリーフをつくる</button><button class="btn sm" type="button" data-act="deal-to-onepager" data-id="${esc(d.id)}">社内説明の1枚</button>` : ""}</div>
+      <div class="row"><button class="btn" type="button" data-act="close">キャンセル</button><button class="btn primary" type="submit">保存</button></div>
+    </div>
+  </form>`;
+}
+let editingDeal = null;
+function openDeal(id, extra) {
+  const d = id ? Object.assign({}, S.deals.find((x) => x.id === id)) : Object.assign({ stage: 1, status: "open", source: "live" }, extra || {});
+  if (id && !d.company) { toast("記録が見つかりませんでした"); return; }
+  editingDeal = d;
+  openSheet(dealForm(d));
+  const sync = () => { $("#f-reason-wrap").hidden = $("#f-status").value !== "stopped"; };
+  $("#f-status").addEventListener("change", sync); sync();
+  $("#f-stage").addEventListener("change", () => { if ($("#f-stage").value === "6") $("#f-status").value = "won"; sync(); });
+  $("#deal-form").addEventListener("submit", saveDeal);
+}
+async function saveDeal(ev) {
+  ev.preventDefault();
+  const v = (id) => { const el = $("#" + id); return el ? el.value.trim() : ""; };
+  const company = v("f-company");
+  if (!company) { $("#f-company").focus(); toast("会社名を入れてください"); return; }
+  const stage = Number(v("f-stage")) || 1;
+  let status = v("f-status") || "open";
+  if (stage === 6) status = "won";
+  const data = {
+    company, stage, status, next: v("f-next"), due: v("f-due"),
+    reason: status === "stopped" ? (v("f-reason") || "不明") : "",
+    size: v("f-size"), industry: v("f-industry"), role: v("f-role"), entry: v("f-entry"), theme: v("f-theme"),
+    venue: $("#f-venue").checked, pain: v("f-pain"), questions: v("f-questions"), hookSeries: v("f-hookSeries"), hook: v("f-hook"), memo: v("f-memo"),
+    verdict: v("f-verdict"), source: editingDeal.source || "live"
+  };
+  const id = editingDeal.id || newId("d");
+  const btn = ev.submitter || $("#deal-form [type=submit]"); if (btn) btn.disabled = true;
+  try { await Store.put("deals", id, data); closeSheet(); toast("保存しました"); }
+  catch (e) { toast(e.message); if (btn) btn.disabled = false; }
+}
+
+/* ================= 画面：ブリーフ ================= */
+const Brief = {
+  mode: "brief", cur: null, ctl: null, op: { dealId: "", text: "", status: "draft", id: null },
+  render() {
+    return `
+    <section class="stack" style="gap:4px"><h1>ブリーフ</h1><p class="lead">AIは見立ての下準備まで。仮説は「確かめる質問」の形で出し、根拠を人が確かめてから使う。お客様に出すものは、必ず人が確かめる。</p></section>
+    <div class="seg" id="b-mode" role="group" aria-label="つくるもの"><button type="button" data-bmode="brief">商談前ブリーフ</button><button type="button" data-bmode="onepager">社内説明の1枚</button></div>
+    <div id="b-body"></div>`;
+  },
+  refresh() {
+    $$("#b-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.bmode === Brief.mode)));
+    const body = $("#b-body");
+    if (body.dataset.mode !== Brief.mode) { body.dataset.mode = Brief.mode; body.innerHTML = Brief.mode === "brief" ? briefShell() : onepagerShell(); bindBriefShell(); }
+    if (Brief.mode === "brief") {
+      $("#b-companies").innerHTML = Array.from(new Set(S.deals.map((d) => d.company))).map((c) => `<option value="${esc(c)}">`).join("");
+      const list = S.briefs.slice().sort(byNewest);
+      $("#b-list").innerHTML = list.length ? `<div class="cards">${list.map((b) => `<button class="card" type="button" data-act="open-brief" data-id="${esc(b.id)}"><b>${esc(b.company)}</b><span class="small muted">${esc(sceneName(b.scene))}・${fmtDate(b.updatedAt)}</span><span>${b.status === "checked" ? `<span class="chip good">確認済み</span>` : `<span class="chip warn">下書き</span>`}</span></button>`).join("")}</div>`
+        : `<div class="empty">保存したブリーフはここに並びます。講師が個別相談に同席する前に、ここから読めるようにします。</div>`;
+    } else {
+      const sel = $("#op-deal"); const keep = sel.value || Brief.op.dealId;
+      sel.innerHTML = `<option value="">商談記録から選ぶ</option>` + S.deals.slice().sort(byNewest).map((d) => `<option value="${esc(d.id)}">${esc(d.company)}（${esc(STAGES[Number(d.stage) || 1])}）</option>`).join("");
+      sel.value = keep;
+      const list = S.onepagers.slice().sort(byNewest);
+      $("#op-list").innerHTML = list.length ? `<div class="cards">${list.map((o) => `<button class="card" type="button" data-act="open-onepager" data-id="${esc(o.id)}"><b>${esc(o.company)}</b><span class="small muted">${fmtDate(o.updatedAt)}</span><span>${o.status === "checked" ? `<span class="chip good">講師が確認済み</span>` : `<span class="chip warn">下書き</span>`}</span></button>`).join("")}</div>`
+        : `<div class="empty">保存した「社内説明の1枚」はここに並びます。</div>`;
+    }
+    paintAI();
+  }
+};
+const sceneName = (id) => ({ followcall: "フォロー架電", consult: "個別相談", first: "初回商談", second: "2回目" }[id] || "");
+function briefShell() {
+  return `<div class="split">
+    <form class="panel stack" id="brief-form" autocomplete="off">
+      <h2>相手の情報</h2>
+      <label class="field"><span>会社名<em>必須</em></span><input type="text" id="b-company" list="b-companies" maxlength="80"><datalist id="b-companies"></datalist><small>商談記録にある会社なら、その記録もAIに渡します。</small></label>
+      <div class="fgrid">
+        <label class="field"><span>規模</span><select id="b-size">${opts(SIZES, "", "選ぶ")}</select></label>
+        <label class="field"><span>業種</span><input type="text" id="b-industry" maxlength="40"></label>
+        <label class="field"><span>相手の役職</span><input type="text" id="b-role" maxlength="60" placeholder="例：人事部 部長"></label>
+        <label class="field"><span>場面</span><select id="b-scene"><option value="consult">個別相談</option><option value="first">初回商談</option><option value="followcall">フォロー架電</option><option value="second">2回目</option></select></label>
+      </div>
+      <label class="field"><span>公開情報（貼り付け）<em>必須</em></span><textarea id="b-info" rows="9" placeholder="中期経営計画、統合報告書の人的資本の章、社長メッセージ、採用ページ、ニュースリリースなどの本文を貼る。AIはここに書かれていることだけを根拠にする。"></textarea><small>出典（URLや資料名）も一緒に貼ると、確かめるときに楽になります。</small></label>
+      ${aiButtons("run-brief", "ブリーフをつくる", "copy-brief")}
+    </form>
+    <div id="brief-out">${Brief.cur && Brief.cur.result ? "" : `<div class="empty"><b>ここにブリーフが出ます。</b><br>課題の仮説（最大3つ）と、それぞれを確かめる質問、根拠、響きそうな連載、冒頭のひと言、避けること、確かめが要る事実。すべての根拠に印をつけると「確認済み」にできます。</div>`}</div>
+  </div>
+  <section class="block"><div class="block-head"><h2>保存したブリーフ</h2></div><div id="b-list"></div></section>`;
+}
+function bindBriefShell() {
+  if (Brief.mode === "brief" && Brief.cur) { fillBriefForm(Brief.cur); renderBriefOut(); }
+  if (Brief.mode === "onepager") { $("#op-text").value = Brief.op.text || ""; paintOpStatus(); }
+}
+function fillBriefForm(b) {
+  $("#b-company").value = b.company || ""; $("#b-size").value = b.size || ""; $("#b-industry").value = b.industry || "";
+  $("#b-role").value = b.role || ""; $("#b-scene").value = b.scene || "consult"; $("#b-info").value = b.info || "";
+}
+function readBriefForm() {
+  return { company: $("#b-company").value.trim(), size: $("#b-size").value, industry: $("#b-industry").value.trim(), role: $("#b-role").value.trim(), scene: $("#b-scene").value, info: $("#b-info").value.trim() };
+}
+function knownFromRecords(company) {
+  const mine = S.deals.filter((d) => company && d.company && (d.company.includes(company) || company.includes(d.company)));
+  const qs = S.deals.map((d) => d.questions).filter(Boolean).slice(0, 12);
+  const rs = Object.entries(stats(S.deals).reasons).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([r, n]) => `${r}（${n}件）`);
+  return {
+    mine: mine.map((d) => `- 段階：${STAGES[Number(d.stage) || 1]}／状態：${STATUS[d.status] || "進行中"}／課題：${clip(d.pain, 160) || "未記入"}／質問・懸念：${clip(d.questions, 160) || "未記入"}／刺さった話：${clip([seriesName(d.hookSeries), d.hook].filter(Boolean).join("：") , 160) || "未記入"}`).join("\n") || "（この会社の記録はない）",
+    qs: qs.map((q) => "- " + clip(q, 120)).join("\n") || "（まだない）",
+    rs: rs.join("、") || "（まだない）"
+  };
+}
+function seriesForPrompt() {
+  return seriesList().map((s) => `- id:${s.id}「${s.name}」（テーマ：${s.theme || "未設定"}）核の視点：${clip(s.core, 400) || "未入力"}`).join("\n");
+}
+function briefPrompt(f) {
+  const k = knownFromRecords(f.company);
+  return `あなたは法人研修の営業を支える準備担当です。従業員100名以上の企業の人事と話す前の「商談前ブリーフ」をつくります。話すのはインターン（案内役）で、専門的な問いにはパートナー講師が答えます。
+
+# 守ること
+- 課題の仮説は【公開情報】に書かれていることだけを根拠にする。根拠には、該当する箇所を短く引用する。
+- 書かれていないことを推測するときは「公開情報からは不明」と書き、確からしさを「低」にする。
+- 数字・固有名詞・人名は【公開情報】にあるものだけを使う。つくらない。
+- 相手に断定しない。仮説は必ず、相手に確かめる「質問」の形にする。人事が「よく分かっている」と感じる、具体的で答えやすい質問にする。
+- インターンに専門家のふりをさせない。冒頭のひと言は、案内役として名乗り、渡辺さんの連載の視点を届ける立場で。
+- 連載の題材の作品名（漫画・アニメ）は前面に出さず、渡辺さんの考え方（視点）を使う。
+
+# 会社
+会社名：${f.company}
+規模：${f.size || "不明"}／業種：${f.industry || "不明"}／相手の役職：${f.role || "不明"}／場面：${sceneName(f.scene)}
+
+# 公開情報
+${clip(f.info, 14000) || "（なし）"}
+
+# これまでの記録（この会社）
+${k.mine}
+
+# 記録全体から分かっていること
+- 人事からよく出た質問・懸念：
+${k.qs}
+- 止まった理由の上位：${k.rs}
+
+# 使える連載（noteの連載と核の視点）
+${seriesForPrompt()}
+
+# 出力
+次のJSONだけを返す。hypothesesは最大3つ。
+{"summary":"この会社の今を2文で","hypotheses":[{"issue":"課題の仮説","evidence":"根拠（公開情報からの短い引用、なければ「公開情報からは不明」）","confidence":"高|中|低","question":"相手に確かめる質問"}],"series":{"id":"s1","name":"連載名","why":"この会社に響きそうな理由","angle":"話の切り口（1〜2文）"},"opener":"冒頭のひと言（2〜3文）","avoid":["言わない方がよいこと"],"factcheck":["使う前に確かめる事実"],"goal":"この面談で目指す次の約束"}`;
+}
+function renderBriefOut(liveMsg) {
+  const out = $("#brief-out"); if (!out) return;
+  if (liveMsg) { out.innerHTML = liveMsg; return; }
+  const b = Brief.cur; if (!b || !b.result) return;
+  const r = b.result; const ch = b.checks || {};
+  const items = [];
+  (r.hypotheses || []).forEach((h, i) => items.push("h" + i));
+  (r.factcheck || []).forEach((f, i) => items.push("f" + i));
+  const allChecked = items.length > 0 && items.every((k) => ch[k]);
+  out.innerHTML = `<div class="ai-out">
+    <div class="ai-status">${b.status === "checked" ? `<span class="chip good">確認済み</span><span class="small muted">確かめた人：${who(b.checkedBy)}</span>` : `<span class="chip warn">AIの下書き</span><span class="small muted">根拠と事実をすべて確かめると、確認済みにできます</span>`}</div>
+    <div><h2>${esc(b.company)}</h2>${r.summary ? `<p class="lead">${esc(r.summary)}</p>` : ""}</div>
+    <div class="kv"><span class="lbl">課題の仮説と、確かめる質問</span>
+      <ul class="hyps">${(r.hypotheses || []).map((h, i) => `<li class="hyp">
+        <div class="hyp-head"><span class="chip ${confCls(h.confidence)}">確からしさ ${esc(h.confidence || "—")}</span><strong>${esc(h.issue)}</strong></div>
+        <div class="hyp-q"><span class="lbl">聞くこと</span>${esc(h.question)}</div>
+        <div class="hyp-ev"><span class="lbl">根拠</span>${esc(h.evidence)}</div>
+        <label class="check"><input type="checkbox" data-bcheck="h${i}" ${ch["h" + i] ? "checked" : ""}> 根拠を元の情報で確かめた</label>
+      </li>`).join("")}</ul></div>
+    ${r.series ? `<div class="kv panel"><span class="lbl">響きそうな連載</span><div><b>${esc(r.series.name || seriesName(r.series.id))}</b></div><div class="small">${esc(r.series.why)}</div><div>${esc(r.series.angle)}</div></div>` : ""}
+    ${r.opener ? `<div class="kv"><span class="lbl">冒頭のひと言（案内役として）</span><div class="out-text">${esc(r.opener)}</div></div>` : ""}
+    ${r.goal ? `<div class="kv"><span class="lbl">この面談で目指す次の約束</span><div>${esc(r.goal)}</div></div>` : ""}
+    ${(r.avoid || []).length ? `<div class="kv"><span class="lbl">言わない方がよいこと</span><ul class="plist">${r.avoid.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
+    ${(r.factcheck || []).length ? `<div class="kv"><span class="lbl">使う前に確かめる事実</span><div class="stack" style="gap:6px">${r.factcheck.map((f, i) => `<label class="check"><input type="checkbox" data-bcheck="f${i}" ${ch["f" + i] ? "checked" : ""}> ${esc(f)}</label>`).join("")}</div></div>` : ""}
+    <div class="row">
+      <button class="btn" type="button" data-act="save-brief">${b.id ? "保存し直す" : "下書きとして保存"}</button>
+      <button class="btn primary" type="button" data-act="check-brief" ${allChecked && b.status !== "checked" ? "" : "disabled"}>確認済みにする</button>
+      <button class="btn ghost" type="button" data-act="copy-brief-text">ブリーフをコピー</button>
+      ${b.id ? `<button class="btn ghost danger" type="button" data-act="del-brief" data-id="${esc(b.id)}">削除</button>` : ""}
+    </div>
+  </div>`;
+  paintNames(out);
+}
+function briefAsText(b) {
+  const r = b.result || {};
+  return [`【商談前ブリーフ】${b.company}（${sceneName(b.scene)}）${b.status === "checked" ? "確認済み" : "下書き"}`, r.summary, "",
+    "■ 課題の仮説と確かめる質問", ...(r.hypotheses || []).map((h, i) => `${i + 1}. ${h.issue}（確からしさ${h.confidence}）\n   聞くこと：${h.question}\n   根拠：${h.evidence}`), "",
+    r.series ? `■ 響きそうな連載：${r.series.name}\n${r.series.why}\n${r.series.angle}` : "", "",
+    `■ 冒頭のひと言\n${r.opener || ""}`, "", `■ 次の約束\n${r.goal || ""}`, "",
+    `■ 言わない方がよいこと\n${(r.avoid || []).map((a) => "・" + a).join("\n")}`, "",
+    `■ 使う前に確かめる事実\n${(r.factcheck || []).map((a) => "・" + a).join("\n")}`].join("\n");
+}
+
+function onepagerShell() {
+  return `<div class="split">
+    <div class="panel stack">
+      <h2>材料</h2>
+      <p class="small muted">人事が上司・経営・現場を説得するための下書き。書き手は人事本人という想定で、記録にない数字はつくらず【要確認】と書かせる。提案の段階に入った案件から使う。</p>
+      <label class="field"><span>商談記録<em>必須</em></span><select id="op-deal"></select></label>
+      <label class="field"><span>足したいこと（任意）</span><textarea id="op-extra" rows="4" placeholder="例：対象は新任課長30名。4月から3回。講師は〇〇さん。"></textarea></label>
+      ${aiButtons("run-onepager", "下書きをつくる", "copy-onepager")}
+    </div>
+    <div class="stack">
+      <div class="ai-status" id="op-status"></div>
+      <textarea id="op-text" class="out-text" placeholder="ここに下書きが出ます。そのまま直せます。"></textarea>
+      <div class="row">
+        <button class="btn" type="button" data-act="save-onepager">保存</button>
+        <button class="btn primary" type="button" data-act="check-onepager">講師が確認した</button>
+        <button class="btn ghost" type="button" data-act="copy-op-text">コピー</button>
+        <button class="btn ghost" type="button" data-act="stop-ai" id="op-stop" hidden>止める</button>
+      </div>
+    </div>
+  </div>
+  <section class="block"><div class="block-head"><h2>保存した「社内説明の1枚」</h2></div><div id="op-list"></div></section>`;
+}
+function paintOpStatus() {
+  const el = $("#op-status"); if (!el) return;
+  const o = Brief.op;
+  el.innerHTML = o.status === "checked" ? `<span class="chip good">講師が確認済み</span><span class="small muted">${who(o.checkedBy)}</span>` : o.text ? `<span class="chip warn">下書き</span><span class="small muted">パートナー講師が、研修として成り立つかを確かめてから渡す</span>` : "";
+  paintNames(el);
+}
+function onepagerPrompt(dealId, extra) {
+  const d = S.deals.find((x) => x.id === dealId) || {};
+  const br = S.briefs.filter((b) => b.company === d.company).sort(byNewest)[0];
+  const s = seriesList().find((x) => x.id === d.hookSeries);
+  return `大企業の人事担当者が、研修の導入を上司・経営・現場に説明するための「社内説明の1枚」の下書きをつくってください。書き手は人事担当者本人という想定です。
+
+# 材料
+会社：${d.company || "不明"}（${[d.size, d.industry].filter(Boolean).join("・") || "規模・業種不明"}）
+相手の役職：${d.role || "不明"}
+研修テーマ：${d.theme || "未定"}
+相手の課題（相手の言葉）：${d.pain || "未記入"}
+出た質問・懸念：${d.questions || "未記入"}
+刺さった話：${d.hook || "未記入"}
+使う連載の視点：${s ? s.name + "：" + (clip(s.core, 600) || "未入力") : "なし"}
+${br && br.result ? `商談前ブリーフの要約：${br.result.summary || ""}\n仮説：${(br.result.hypotheses || []).map((h) => h.issue).join("／")}` : ""}
+足したいこと：${extra || "なし"}
+
+# 構成（見出しはこの通り）
+1. 背景（いま会社で起きていること）
+2. なぜ今か
+3. 現場の課題（相手の言葉を生かす）
+4. 研修の骨子（テーマ・対象・回数。決まっていなければ【要確認】）
+5. 期待する変化と、その測り方
+6. 懸念と対策（出た質問・懸念に答える）
+7. 費用と日程（【講師と確認】と書く）
+
+# 守ること
+- 材料にない数字・事実・実績をつくらない。分からないところは【要確認】と書く。
+- 上司が1分で読める長さ（A4で1枚）。見出しと短い箇条書きで。
+- 研修会社の売り込みの文ではなく、人事が自分の言葉で社内を説得する文にする。
+- 漫画・アニメの作品名は出さず、考え方として書く。`;
+}
+
+/* ================= 画面：ストーリー ================= */
+const Story = {
+  render() {
+    return `
+    <section class="stack" style="gap:4px"><h1>一本のストーリー</h1><p class="lead">核はnoteの連載。同じ「相手の課題」を軸に、架電から導入後まで全員が同じ話をする。AIは核の視点を各フェーズの形に展開するだけで、量産はしない。確かめたものだけが「確認済み」になる。</p></section>
+    <div class="row small muted"><span class="chip">未作成</span><span class="chip warn">下書き</span><span class="chip good">確認済み</span><span>セルを押すと開きます。まず連載ごとに「核の視点」を入れてください。</span></div>
+    <div class="mx-wrap"><table class="mx" id="mx"></table></div>
+    <div class="row"><button class="btn" data-act="add-series">＋ 連載を足す</button><span class="small muted">連載とテーマの対応は仮置き。最初の一本にするカテゴリーを一つ決めて、そこから埋める。</span></div>`;
+  },
+  refresh() {
+    const sl = seriesList();
+    const cell = (sid, pid) => S.story.find((x) => x.id === sid + "__" + pid);
+    $("#mx").innerHTML = `<thead><tr><th>連載（核）</th>${PHASES.map((p) => `<th>${esc(p.name)}<small>${esc(p.need)}</small></th>`).join("")}</tr></thead>
+      <tbody>${sl.map((s) => `<tr>
+        <th><div class="mx-series"><b>${esc(s.name)}</b><span><span class="chip">${esc(s.theme || "テーマ未設定")}</span></span>
+          <span class="mx-core">${s.core ? esc(clip(s.core, 90)) : `<span class="chip warn">核の視点が未入力</span>`}</span>
+          <span class="row"><button class="linkbtn" data-act="edit-series" data-id="${esc(s.id)}">視点を編集</button><button class="linkbtn" data-act="check-series" data-id="${esc(s.id)}">同じ話か確かめる</button></span></div></th>
+        ${PHASES.map((p) => { const c = cell(s.id, p.id); const st = !c || !c.text ? "none" : c.status === "checked" ? "checked" : "draft";
+          return `<td><button class="cell" type="button" data-act="open-cell" data-s="${esc(s.id)}" data-p="${p.id}" aria-label="${esc(s.name)}・${esc(p.name)}">
+            <span>${st === "none" ? `<span class="chip">未作成</span>` : st === "checked" ? `<span class="chip good">確認済み</span>` : `<span class="chip warn">下書き</span>`}</span>
+            ${c && c.text ? `<span class="snip">${esc(clip(c.text, 120))}</span>` : ""}</button></td>`; }).join("")}
+      </tr>`).join("")}</tbody>`;
+  }
+};
+function seriesForm(s) {
+  return `<form id="series-form" class="stack" autocomplete="off">
+    <div class="sheet-head"><h2>${s.id ? "連載の核の視点" : "連載を足す"}</h2><button class="btn ghost sm" type="button" data-act="close">閉じる</button></div>
+    <label class="field"><span>連載名</span><input type="text" id="s-name" value="${esc(s.name)}" maxlength="80" required></label>
+    <label class="field"><span>研修テーマ（仮置き）</span><select id="s-theme">${opts(THEMES, s.theme, "選ぶ")}</select></label>
+    <label class="field"><span>核の視点</span><textarea id="s-core" rows="10" placeholder="記事の要点と、渡辺さんの視点を3〜8行で。作品の台詞や画像の引用ではなく、考え方を書く。&#10;例：〇〇とは何か／人事が見落としがちなこと／現場で起きていること／研修でどう変わるか">${esc(s.core)}</textarea><small>ここに書いたことだけが、AIの展開とブリーフの材料になります。</small></label>
+    <div class="sheet-foot"><div class="row">${s.id && !DEFAULT_SERIES.some((d) => d.id === s.id) ? `<button class="btn danger" type="button" data-act="archive-series" data-id="${esc(s.id)}">この連載を外す</button>` : ""}</div>
+      <div class="row"><button class="btn" type="button" data-act="close">キャンセル</button><button class="btn primary" type="submit">保存</button></div></div>
+  </form>`;
+}
+function openSeries(id) {
+  const s = id ? seriesList().find((x) => x.id === id) : { name: "", theme: "", core: "" };
+  if (!s) return;
+  openSheet(seriesForm(s));
+  $("#series-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("#s-name").value.trim(); if (!name) { toast("連載名を入れてください"); return; }
+    const sid = s.id || newId("s");
+    try { await Store.put("series", sid, { name, theme: $("#s-theme").value, core: $("#s-core").value.trim(), archived: false }); closeSheet(); toast("保存しました"); }
+    catch (e) { toast(e.message); }
+  });
+}
+let editingCell = null;
+function storyPrompt(s, p) {
+  return `noteの連載「${s.name}」を核に、営業フェーズ「${p.name}」で使うトーク・マニュアルの下書きをつくってください。
+
+# 核の視点（渡辺さんの連載から）
+${s.core || "（未入力）"}
+
+# このフェーズで必要なもの
+${p.need}
+
+# 相手と話し手
+- 相手：従業員100名以上の企業の人事・人材開発の担当者。研修テーマは「${s.theme || "未設定"}」。
+- 話し手：インターン（案内役）。専門家として断定しない。渡辺さんの視点を「届ける」立場。専門的な問いは「講師が個別相談でお答えします」とつなぐ。
+
+# 守ること
+- 核の視点に書かれていないことを足さない。数字・実績をつくらない。
+- 作品の台詞や画像を引用しない。作品名は話のきっかけに一度触れる程度で、考え方を話す。
+- 架電・フォローは1〜2分、商談は5分で話せる長さ。
+- 見出しと短い箇条書きで。最後に「このフェーズの次の一手」を1行で書く。`;
+}
+function openCell(sid, pid) {
+  const s = seriesList().find((x) => x.id === sid); const p = PHASES.find((x) => x.id === pid);
+  if (!s || !p) return;
+  const c = S.story.find((x) => x.id === sid + "__" + pid) || {};
+  editingCell = { s, p, id: sid + "__" + pid, c };
+  openSheet(`<div class="stack">
+    <div class="sheet-head"><div><h2>${esc(p.name)}</h2><p class="small muted">${esc(s.name)}</p></div><button class="btn ghost sm" type="button" data-act="close">閉じる</button></div>
+    <div class="guide"><span class="lbl">このフェーズで必要なもの</span><div>${esc(p.need)}</div></div>
+    <details ${s.core ? "" : "open"}><summary>核の視点</summary><p class="small" style="margin-top:6px;white-space:pre-wrap">${s.core ? esc(s.core) : "未入力です。先に「視点を編集」から入れてください。"}</p></details>
+    ${aiButtons("run-cell", "核の視点から下書きをつくる", "copy-cell")}
+    <textarea id="c-text" class="out-text" placeholder="トーク・マニュアル。AIの下書きを直すか、自分で書く。">${esc(c.text)}</textarea>
+    <fieldset><legend>状態</legend><div class="row">
+      <label class="check"><input type="radio" name="c-status" value="draft" ${c.status !== "checked" ? "checked" : ""}> 下書き</label>
+      <label class="check"><input type="radio" name="c-status" value="checked" ${c.status === "checked" ? "checked" : ""}> 確認済み（事実と言い回しを確かめた）</label>
+    </div></fieldset>
+    <div class="sheet-foot"><button class="btn ghost" type="button" data-act="stop-ai" id="c-stop" hidden>止める</button><div class="row"><button class="btn" type="button" data-act="close">キャンセル</button><button class="btn primary" type="button" data-act="save-cell">保存</button></div></div>
+  </div>`);
+  paintAI();
+}
+function consistencyPrompt(s) {
+  const parts = PHASES.map((p) => { const c = S.story.find((x) => x.id === s.id + "__" + p.id); return `## ${p.name}\n${c && c.text ? clip(c.text, 2500) : "（未作成）"}`; }).join("\n\n");
+  return `noteの連載「${s.name}」を核にした営業トークが、フェーズをまたいで「同じ話」になっているかを確かめてください。
+
+# 核の視点
+${s.core || "（未入力）"}
+
+# 各フェーズのトーク
+${parts}
+
+# 見ること
+- 核の視点とずれていないか。核にない主張・数字・実績が足されていないか。
+- 前のフェーズで約束・予告したことが、次のフェーズで受けられているか。
+- 相手の課題の言い方が、フェーズごとに変わっていないか。
+
+# 出力
+次のJSONだけを返す。
+{"consistent":true,"summary":"全体の判断（2文）","drifts":[{"phase":"フェーズ名","issue":"ずれ","fix":"直し方"}]}`;
+}
+
+/* ================= 画面：練習 ================= */
+const P = { on: false, persona: "mfg", scene: "consult", series: "", rules: "", turns: [], busy: false, ctl: null, feedback: null };
+const Practice = {
+  render() {
+    return `
+    <section class="stack" style="gap:4px"><h1>練習</h1><p class="lead">AIが大企業の人事を演じる。これまでの記録に出た質問・懸念や断られた理由を持たせるので、記録が増えるほど本物に近づく。終えたら、資料p.3の四つの機能で講評を受ける。</p></section>
+    <div class="split">
+      <div class="panel stack" id="p-setup">
+        <h2>相手と場面</h2>
+        <div class="personas" role="radiogroup" aria-label="相手">${PERSONAS.map((p) => `<label class="persona"><input type="radio" name="p-persona" value="${p.id}" ${P.persona === p.id ? "checked" : ""}><span><b>${esc(p.name)}</b><span>${esc(p.desc)}</span></span></label>`).join("")}</div>
+        <div class="fgrid">
+          <label class="field"><span>場面</span><select id="p-scene">${SCENES.map((s) => `<option value="${s.id}" ${P.scene === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+          <label class="field"><span>使う連載</span><select id="p-series"><option value="">指定しない</option>${seriesList().map((s) => `<option value="${esc(s.id)}" ${P.series === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+        </div>
+        ${aiButtons("start-practice", P.on ? "最初からやり直す" : "練習を始める", "copy-practice")}
+        <details><summary>講評の観点</summary><ul class="plist small" style="margin-top:6px">${RUBRIC.map((r) => `<li><b>${esc(r.name)}</b>：${esc(r.desc)}</li>`).join("")}</ul><p class="small muted" style="margin-top:6px">1＝できていない、2＝一部、3＝できている、4＝手本になる。立ち上がりの目安（仮置き）：10回練習し、見立てが平均3以上。</p></details>
+      </div>
+      <div class="panel chat" id="p-chat"></div>
+    </div>
+    <section class="block"><div class="block-head"><h2>練習の記録</h2><span class="src">人ごとの回数と、見立ての平均</span></div><div id="p-log"></div></section>`;
+  },
+  refresh() {
+    const list = S.practice.slice().sort(byNewest);
+    if (!list.length) { $("#p-log").innerHTML = `<div class="empty">講評を受けると、ここに記録されます。インターンが何回練習し、どの観点が伸びているかを持ち主が見られます。</div>`; return; }
+    const byP = new Map();
+    list.forEach((x) => { const k = x.by || "local"; if (!byP.has(k)) byP.set(k, []); byP.get(k).push(x); });
+    const sum = Array.from(byP.entries()).map(([k, xs]) => { const m = xs.map((x) => Number(x.scores && x.scores.mitate) || 0).filter(Boolean); const avg = m.length ? Math.round((m.reduce((a, b) => a + b, 0) / m.length) * 10) / 10 : null; const ok = xs.length >= 10 && avg >= 3; return `<span class="chip ${ok ? "good" : ""}">${k === "local" ? "この端末" : who(k)}：${xs.length}回・見立て平均${avg ?? "—"}${ok ? "・目安に到達" : ""}</span>`; }).join(" ");
+    const dots = (n) => { let h = `<span class="dots" aria-label="${n}／4">`; for (let i = 1; i <= 4; i++) h += `<i class="${i <= n ? "on" : ""}"></i>`; return h + "</span>"; };
+    $("#p-log").innerHTML = `<div class="row" style="margin-bottom:10px">${sum}</div><div class="plog"><table><thead><tr><th>日付</th><th>練習した人</th><th>相手・場面</th>${RUBRIC.map((r) => `<th>${esc(r.name)}</th>`).join("")}<th>次に試す一言</th></tr></thead><tbody>
+      ${list.slice(0, 50).map((x) => `<tr><td class="num">${fmtDate(x.createdAt)}</td><td>${who(x.by)}</td><td>${esc((PERSONAS.find((p) => p.id === x.persona) || {}).name || "")}<br><span class="muted small">${esc((SCENES.find((s) => s.id === x.scene) || {}).name || "")}</span></td>${RUBRIC.map((r) => `<td>${dots(Number(x.scores && x.scores[r.id]) || 0)}</td>`).join("")}<td class="small">${esc(clip(x.try, 80))}</td></tr>`).join("")}
+    </tbody></table></div>`;
+    paintNames($("#p-log"));
+  }
+};
+function practiceRules() {
+  const per = PERSONAS.find((p) => p.id === P.persona) || PERSONAS[0];
+  const sc = SCENES.find((s) => s.id === P.scene) || SCENES[0];
+  const s = seriesList().find((x) => x.id === P.series);
+  const qs = S.deals.map((d) => d.questions).filter(Boolean).slice(0, 10).map((q) => "- " + clip(q, 120)).join("\n");
+  const rs = Object.entries(stats(S.deals).reasons).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([r]) => "- " + r).join("\n");
+  return `これは研修会社のインターンのための営業ロールプレイです。あなたは次の人物を演じてください。
+
+# 演じる人物
+${per.brief}
+
+# 場面
+${sc.name}。相手は研修会社のインターン（案内役）。${sc.id === "followcall" ? "以前、研修会社から記事（noteの連載）が送られてきた。電話がかかってきた。" : sc.id === "consult" ? "研修会社のウェビナー（講師の登壇）に参加した後、個別相談の時間を取った。" : "アポイントを受けて、初めての商談の席に着いた。"}
+${s ? `インターンは連載「${s.name}」の視点を話題にするかもしれない。視点：${clip(s.core, 300) || "（未入力）"}` : ""}
+
+# 演じ方
+- 実在の人事担当者らしく、忙しく、簡単には本音を話さない。良い質問をされたら少しずつ話す。売り込まれると引く。
+- 1回の返答は2〜4文。話し言葉で。
+- 次のような質問・懸念を、流れの中で自然に出す（これまでの商談で実際に出たもの）：
+${qs || "- 他社の実績はありますか\n- 効果はどう測るのですか\n- 費用はどのくらいですか"}
+- 次のような理由で話を終えようとすることがある：
+${rs || "- 予算・時期が合わない\n- 社内で説明できない"}
+- ロールプレイの外の説明、講評、助言はしない。人物として話すだけ。`;
+}
+function renderChat(streamText) {
+  const box = $("#p-chat"); if (!box) return;
+  if (!P.on) {
+    box.innerHTML = `<div class="empty" style="align-self:start"><b>左で相手と場面を選び、「練習を始める」を押してください。</b><br>相手（AIの人事）が先に話します。あなたはインターンとして返します。終えたら「講評をもらう」。<br><span class="small muted">AIが使えない場所では「プロンプトをコピー」をClaudeに貼ると、同じ練習ができます。</span></div>`;
+    return;
+  }
+  const per = PERSONAS.find((p) => p.id === P.persona) || PERSONAS[0];
+  const msgs = P.turns.map((t) => `<div class="msg ${t.role === "assistant" ? "hr" : "me"}"><span class="who">${t.role === "assistant" ? esc(per.name) : "あなた（インターン）"}</span>${esc(t.content)}</div>`).join("")
+    + (streamText !== undefined ? `<div class="msg hr"><span class="who">${esc(per.name)}</span>${streamText ? esc(streamText) : `<span class="thinking">考えています</span>`}</div>` : "");
+  const fb = P.feedback ? renderFeedback(P.feedback) : "";
+  box.innerHTML = `<div class="spread"><b>${esc(per.name)}</b><span class="small muted">${esc((SCENES.find((s) => s.id === P.scene) || {}).name)}</span></div>
+    <div class="msgs" id="p-msgs">${msgs}${fb}</div>
+    <div class="stack" style="gap:8px">
+      <div class="compose"><textarea id="p-input" rows="2" placeholder="インターンとして返す（Ctrl+Enterで送る）" ${P.busy || P.feedback ? "disabled" : ""}></textarea><button class="btn primary" data-act="send-practice" ${P.busy || P.feedback ? "disabled" : ""}>送る</button></div>
+      <div class="row"><button class="btn" data-act="feedback-practice" ${P.busy || P.feedback || P.turns.filter((t) => t.role === "user").length < 2 ? "disabled" : ""}>終えて講評をもらう</button>${P.busy ? `<button class="btn ghost" data-act="stop-ai">止める</button>` : ""}<span class="small muted">講評は2回以上返してから</span></div>
+    </div>`;
+  const m = $("#p-msgs"); m.scrollTop = m.scrollHeight;
+  const inp = $("#p-input"); if (inp && !inp.disabled) { inp.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendPractice(); } }); }
+}
+function renderFeedback(f) {
+  return `<div class="stack panel" style="gap:10px">
+    <b>講評</b>
+    <div class="scores">${RUBRIC.map((r) => `<div class="score" data-tip="${esc(r.desc)}"><div class="small muted">${esc(r.name)}</div><div class="sn">${esc(f.scores && f.scores[r.id] || "—")}<small>／4</small></div></div>`).join("")}</div>
+    ${f.summary ? `<p>${esc(f.summary)}</p>` : ""}
+    ${(f.good || []).length ? `<div class="kv"><span class="lbl">良かった点</span><ul class="plist">${f.good.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${(f.improve || []).length ? `<div class="kv"><span class="lbl">直す点</span><ul class="plist">${f.improve.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${f.try ? `<div class="kv"><span class="lbl">次に試す一言</span><div class="callout">${esc(f.try)}</div></div>` : ""}
+    <span class="small muted">講評は練習の記録に保存しました。</span>
+  </div>`;
+}
+async function practiceTurn() {
+  if (AI.state !== "on") { toast("AIが使えません。「プロンプトをコピー」をお使いください"); renderChat(); return; }
+  P.busy = true; renderChat("");
+  const ctl = new AbortController(); P.ctl = ctl;
+  const input = [{ role: "user", content: P.rules + (P.turns.length ? "" : "\n\nでは始めてください。あなた（人事）の最初のひと言だけを返してください。") }].concat(P.turns);
+  try {
+    const { text } = await AI.fn(input, { modelTier: "quick", cache: false, signal: ctl.signal, onText: ({ text }) => { const last = $("#p-msgs .msg.hr:last-of-type"); if (last && P.busy) { last.innerHTML = `<span class="who">${esc((PERSONAS.find((p) => p.id === P.persona) || {}).name)}</span>` + esc(text); } } });
+    P.turns.push({ role: "assistant", content: text });
+  } catch (e) {
+    const m = aiErr(e); if (m) toast(m);
+    if (e && e.text) P.turns.push({ role: "assistant", content: e.text });
+    else if (P.turns.length && P.turns[P.turns.length - 1].role === "user") { /* 入力は残す */ }
+  }
+  P.busy = false; P.ctl = null; renderChat();
+}
+async function sendPractice() {
+  const inp = $("#p-input"); const v = inp && inp.value.trim();
+  if (!v || P.busy) return;
+  P.turns.push({ role: "user", content: v });
+  if (AI.state !== "on") { toast("AIが使えません。「プロンプトをコピー」をお使いください"); renderChat(); return; }
+  await practiceTurn();
+}
+async function feedbackPractice() {
+  if (P.busy) return;
+  P.busy = true; renderChat();
+  const per = PERSONAS.find((p) => p.id === P.persona) || PERSONAS[0];
+  const transcript = P.turns.map((t) => (t.role === "assistant" ? "人事：" : "インターン：") + t.content).join("\n");
+  const prompt = `研修会社のインターンが、大企業の人事を相手に営業ロールプレイをしました。インターンの話し方を講評してください。
+
+# 相手（AIが演じた人事）
+${per.brief}
+# 場面
+${(SCENES.find((s) => s.id === P.scene) || {}).name}
+
+# やりとり
+${clip(transcript, 20000)}
+
+# 観点（各1〜4点。1＝できていない、2＝一部、3＝できている、4＝手本になる）
+${RUBRIC.map((r) => `- ${r.id}（${r.name}）：${r.desc}`).join("\n")}
+
+# 守ること
+- インターンは専門家ではなく案内役。専門家のふりをしないことは減点しない。むしろ評価する。
+- 良かった点・直す点は、やりとりの具体的な発言を挙げて書く。
+- 「次に試す一言」は、そのまま口に出せる一文。
+
+# 出力
+次のJSONだけを返す。
+{"scores":{"mitate":1,"taito":1,"teian":1,"shinrai":1},"summary":"総評（2文）","good":["良かった点"],"improve":["直す点"],"try":"次に試す一言"}`;
+  try {
+    const f = await aiJSON(prompt, "default");
+    const sc = {}; RUBRIC.forEach((r) => { const n = Math.max(1, Math.min(4, Math.round(Number(f && f.scores && f.scores[r.id]) || 1))); sc[r.id] = n; });
+    P.feedback = { scores: sc, summary: str(f && f.summary), good: arr(f && f.good).map(str).slice(0, 5), improve: arr(f && f.improve).map(str).slice(0, 5), try: str(f && f.try) };
+    try {
+      await Store.put("practice", newId("p"), { persona: P.persona, scene: P.scene, series: P.series, turns: P.turns.length, scores: sc, summary: P.feedback.summary, good: P.feedback.good, improve: P.feedback.improve, try: P.feedback.try, transcript: P.turns.slice(-40) });
+    } catch (e) { toast(e.message); }
+  } catch (e) { const m = aiErr(e); if (m) toast(m); }
+  P.busy = false; renderChat();
+}
+
+/* ================= 画面：議論と設計 ================= */
+const About = {
+  render() {
+    const c = cfg();
+    return `
+    <section class="stack" style="gap:6px"><h1>議論と設計</h1><p class="lead">このアプリは、11/1資料の検討資料を読んだうえで、立場の違う10人の専門家の視点を立てて行った議論から設計した。参加者は実在の人物ではなく、視点を分けるための仮想のペルソナ。全文はリポジトリの <code>docs/10人の議論.md</code>。</p></section>
+    <section class="block"><div class="block-head"><h2>10人が強く言ったこと</h2></div>
+      <div class="panelists">${PANEL.map(([n, r, q]) => `<div class="pn"><span class="who"><b>${esc(n)}</b>・${esc(r)}</span><q>${esc(q)}</q></div>`).join("")}</div></section>
+    <div class="grid2">
+      <section class="block"><div class="block-head"><h2>合意した原則</h2></div>
+        <ul class="plist">
+          <li><b>記録が先、型は後。</b>全機能の材料は商談記録。勝った型ができたらストーリーに流し込む。</li>
+          <li><b>一本のストーリー。</b>noteの連載を核に、架電から導入後までのトークを1か所に置く。</li>
+          <li><b>AIは下準備、確かめるのは人。</b>AIの出力は下書きから始まり、人が確かめて確認済みにする。</li>
+          <li><b>信頼の指標で測る。</b>アポ数ではなく、有効な会話・信頼の場・個別相談・2回目。</li>
+          <li><b>インターンが毎日開く1画面。</b>ホームで次の一手と期限が分かる。</li>
+        </ul></section>
+      <section class="block"><div class="block-head"><h2>やらないこと</h2></div>
+        <ul class="plist">
+          <li>トーク・記事・メールの量産</li>
+          <li>お客様への自動送信（AIの出力は人が確かめてから使う）</li>
+          <li>CRMの置き換え、自動架電</li>
+          <li>個人名・作品の画像の保存（記録は役職まで。連載は考え方を使う）</li>
+        </ul></section>
+    </div>
+    <section class="block"><div class="block-head"><h2>機能と順番</h2><span class="src">資料のページとの対応</span></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>優先</th><th>機能</th><th>期限の目安</th><th>資料</th></tr></thead><tbody>
+        <tr><td>1</td><td>商談記録・46件の振り返り</td><td>柳沼さんの在籍中（12月末）</td><td>p.10 ①②</td></tr>
+        <tr><td>1</td><td>信頼の指標（ファネル・止まった理由・入口別の比較）</td><td>すぐ</td><td>p.11 ⑥</td></tr>
+        <tr><td>1</td><td>次の一手（11/24ウェビナー後のフォロー）</td><td>11/24</td><td>p.10 ④⑥</td></tr>
+        <tr><td>2</td><td>勝ち筋の仮説（記録からAIが分析）</td><td>記録が20件たまったら</td><td>p.4</td></tr>
+        <tr><td>2</td><td>商談前ブリーフ（確かめる質問つき）</td><td>12月</td><td>p.6・7</td></tr>
+        <tr><td>2</td><td>一本のストーリー（連載×フェーズ）</td><td>12月</td><td>p.8</td></tr>
+        <tr><td>2</td><td>AIロールプレイと講評</td><td>1月</td><td>p.7</td></tr>
+        <tr><td>3</td><td>社内説明の1枚</td><td>提案の段階の案件から</td><td>p.9</td></tr>
+      </tbody></table></div></section>
+    <section class="block"><div class="block-head"><h2>残った論点（アプリでは解けないこと）</h2></div>
+      <ul class="plist">
+        <li><b>仕組みの持ち主を誰にするか。</b>アプリは確認と差し替えを軽くするが、持ち主の代わりにはならない。</li>
+        <li><b>大企業か中堅か。</b>記録が20件ほどたまった時点で、規模別の2回目到達率を見て判断する。</li>
+        <li><b>アイドマ様の役割を「ウェビナーへの誘導」に絞るか。</b>入口別の比較で差が見えたら判断材料にする。</li>
+      </ul></section>
+    <section class="block"><div class="block-head"><h2>設定</h2><span class="src">目標は仮置き。実績に合わせて置き直す</span></div>
+      <form class="panel stack" id="cfg-form" autocomplete="off">
+        <div class="fgrid">
+          <label class="field"><span>ウェビナーの日</span><input type="date" id="c-webinar" value="${esc(c.webinarDate)}"></label>
+          <label class="field"><span>振り返りの期限</span><input type="date" id="c-retro" value="${esc(c.retroDue)}"></label>
+          <label class="field"><span>1月以降の体制への切り替え</span><input type="date" id="c-switch" value="${esc(c.switchDate)}"></label>
+          <label class="field"><span>振り返りの対象件数</span><input type="number" id="c-retroN" min="1" max="999" value="${esc(c.retroTarget)}"></label>
+        </div>
+        <div class="fgrid">
+          <label class="field"><span>信頼の場 → 個別相談（%）</span><input type="number" id="c-t-venue" min="0" max="100" value="${esc(c.targets.venue)}"></label>
+          <label class="field"><span>個別相談 → 2回目（%）</span><input type="number" id="c-t-second" min="0" max="100" value="${esc(c.targets.second)}"></label>
+          <label class="field"><span>2回目 → 提案（%）</span><input type="number" id="c-t-proposal" min="0" max="100" value="${esc(c.targets.proposal)}"></label>
+          <label class="field"><span>提案 → 受注（%）</span><input type="number" id="c-t-won" min="0" max="100" value="${esc(c.targets.won)}"></label>
+        </div>
+        <p class="small muted">見直しの基準：2027年3月末で「個別相談 → 2回目」が20%を下回ったら、狙う顧客層か入口の商品を見直す。3月末までに受注1件を「勝ち筋の証明」とする。</p>
+        <div class="row"><button class="btn primary" type="submit">設定を保存</button></div>
+      </form></section>
+    <section class="block"><div class="block-head"><h2>データ</h2></div>
+      <div class="stack small" id="a-data"></div></section>`;
+  },
+  refresh() {
+    const n = S.deals.length;
+    $("#a-data").innerHTML = `<p>保存先：${Store.mode === "db" ? "このアプリの共有データ（このアプリを開ける人で共有）" : "この端末のブラウザだけ（他の人には見えない。Claudeのアーティファクトとして開くと共有される）"}</p>
+      <p>商談記録 <span class="num">${n}</span>件・ブリーフ <span class="num">${S.briefs.length}</span>件・トーク <span class="num">${S.story.filter((x) => x.text).length}</span>件・練習 <span class="num">${S.practice.length}</span>回</p>
+      <div class="row"><button class="btn sm" data-act="export-csv">商談記録をCSVで書き出す</button></div>`;
+  }
+};
+async function saveConfig(ev) {
+  ev.preventDefault();
+  const num = (id, d) => { const v = Number($("#" + id).value); return isFinite(v) && v >= 0 ? v : d; };
+  const c = cfg();
+  const data = {
+    webinarDate: $("#c-webinar").value || c.webinarDate, retroDue: $("#c-retro").value || c.retroDue, switchDate: $("#c-switch").value || c.switchDate,
+    retroTarget: Math.max(1, Math.round(num("c-retroN", c.retroTarget))),
+    targets: { venue: num("c-t-venue", c.targets.venue), second: num("c-t-second", c.targets.second), proposal: num("c-t-proposal", c.targets.proposal), won: num("c-t-won", c.targets.won) }
+  };
+  try { await Store.put("config", "main", data); toast("設定を保存しました"); } catch (e) { toast(e.message); }
+}
+
+/* ================= CSV ================= */
+async function exportCSV() {
+  const head = ["会社", "規模", "業種", "相手の役職", "入口", "信頼の場", "テーマ", "段階", "状態", "止まった理由", "次の一手", "期日", "相手の課題", "質問・懸念", "刺さった連載", "刺さった話", "メモ", "振り返り", "追うべきか", "更新"];
+  const q = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  const rows = S.deals.slice().sort(byNewest).map((d) => [d.company, d.size, d.industry, d.role, d.entry, d.venue ? "経由" : "", d.theme, STAGES[Number(d.stage) || 1], STATUS[d.status] || "進行中", d.reason, d.next, d.due, d.pain, d.questions, seriesName(d.hookSeries), d.hook, d.memo, d.source === "retro" ? "柳沼さん" : "", d.verdict, (d.updatedAt || "").slice(0, 10)].map(q).join(","));
+  const csv = "﻿" + [head.map(q).join(",")].concat(rows).join("\r\n");
+  let dl = null;
+  if (window.claude && typeof window.claude.use === "function") { try { dl = await window.claude.use("downloads"); } catch (e) { dl = null; } }
+  if (dl) {
+    try { await dl.save({ filename: "勝ち筋ラボ_商談記録_" + todayStr().replace(/-/g, "") + ".csv", data: csv }); return; }
+    catch (e) { if (e && e.code === "declined") return; }
+  }
+  copyText(csv.slice(1), "CSVを");
+}
+
+/* ================= シート（右から出る編集画面） ================= */
+function openSheet(html) {
+  const s = $("#sheet");
+  s.innerHTML = `<div class="sheet-back" data-act="close"></div><div class="sheet-panel" role="dialog" aria-modal="true">${html}</div>`;
+  s.hidden = false; document.body.classList.add("locked");
+  const f = s.querySelector("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select"); if (f) setTimeout(() => f.focus(), 30);
+  paintAI();
+}
+function closeSheet() {
+  if (Sheet.ctl) { Sheet.ctl.abort(); Sheet.ctl = null; }
+  const s = $("#sheet"); s.hidden = true; s.innerHTML = ""; document.body.classList.remove("locked");
+  editingDeal = null; editingCell = null;
+}
+const Sheet = { ctl: null };
+
+/* ================= ルーティング ================= */
+const VIEWS = { home: Home, records: Records, brief: Brief, story: Story, practice: Practice, about: About };
+let route = "home";
+function go() {
+  const h = (location.hash || "").replace("#", "");
+  route = VIEWS[h] ? h : "home";
+  $$("#tabs a").forEach((a) => { if (a.getAttribute("href") === "#" + route) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  $("#view").innerHTML = VIEWS[route].render();
+  if (route === "practice") renderChat();
+  if (route === "about") $("#cfg-form").addEventListener("submit", saveConfig);
+  refreshView(); window.scrollTo(0, 0);
+}
+function refreshView() { try { VIEWS[route].refresh(); } catch (e) { console.error(e); } paintAI(); }
+let rafPending = false;
+function onData() { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; refreshView(); }); }
+
+/* ================= 操作 ================= */
+document.addEventListener("click", async (ev) => {
+  const t = ev.target.closest("[data-act], [data-cmp], [data-f], [data-bmode]");
+  if (!t) return;
+  if (t.dataset.cmp) { Home.cmpKey = t.dataset.cmp; refreshView(); return; }
+  if (t.dataset.f) { Records.filter = t.dataset.f; refreshView(); return; }
+  if (t.dataset.bmode) { Brief.mode = t.dataset.bmode; refreshView(); return; }
+  const act = t.dataset.act; const id = t.dataset.id;
+  switch (act) {
+    case "close": closeSheet(); break;
+    case "new-deal": openDeal(null); break;
+    case "new-retro": openDeal(null, { source: "retro", entry: "アイドマ様の架電", stage: 2 }); break;
+    case "open-deal": openDeal(id); break;
+    case "del-deal":
+      if (!t.classList.contains("armed")) { t.classList.add("armed"); t.textContent = "もう一度押すと削除"; setTimeout(() => { if (t.isConnected) { t.classList.remove("armed"); t.textContent = "削除"; } }, 4000); break; }
+      try { await Store.del("deals", id); closeSheet(); toast("削除しました"); } catch (e) { toast(e.message); }
+      break;
+    case "deal-to-brief": {
+      const d = S.deals.find((x) => x.id === id); closeSheet();
+      Brief.mode = "brief"; Brief.cur = { company: d.company, size: d.size, industry: d.industry, role: d.role, scene: Number(d.stage) >= 3 ? "second" : "consult", info: "" };
+      if (location.hash === "#brief") { $("#b-body").dataset.mode = ""; refreshView(); } else location.hash = "#brief";
+      break;
+    }
+    case "deal-to-onepager": {
+      closeSheet(); Brief.mode = "onepager"; Brief.op = { dealId: id, text: "", status: "draft", id: null };
+      if (location.hash === "#brief") { $("#b-body").dataset.mode = ""; refreshView(); } else location.hash = "#brief";
+      break;
+    }
+    case "export-csv": exportCSV(); break;
+
+    /* 勝ち筋 */
+    case "copy-insight": copyText(insightPrompt(), "プロンプトを"); break;
+    case "run-insight": {
+      if (!S.deals.length) { toast("先に商談記録を入れてください"); break; }
+      Home.busy = true; t.dataset.busy = "1"; paintAI(); $("#h-insight-live").innerHTML = `<span class="thinking">記録を読んでいます（1分ほど）</span>`;
+      try {
+        const r = normInsight(await aiJSON(insightPrompt(), "default"));
+        await Store.put("insights", newId("i"), { result: r, n: S.deals.length, status: "draft" });
+        toast("勝ち筋の仮説を下書きしました");
+      } catch (e) { const m = e instanceof Error ? e.message : aiErr(e); if (m) toast(m); }
+      Home.busy = false; t.dataset.busy = ""; if (route === "home") refreshView();
+      break;
+    }
+    case "check-insight": {
+      const ins = S.insights.find((x) => x.id === id); if (!ins) break;
+      try { await Store.put("insights", id, Object.assign({}, ins, { status: "checked", checkedBy: Store.uid || null })); } catch (e) { toast(e.message); }
+      break;
+    }
+
+    /* ブリーフ */
+    case "copy-brief": { const f = readBriefForm(); if (!f.company) { toast("会社名を入れてください"); break; } copyText(briefPrompt(f), "プロンプトを"); break; }
+    case "run-brief": {
+      const f = readBriefForm();
+      if (!f.company) { $("#b-company").focus(); toast("会社名を入れてください"); break; }
+      if (f.info.length < 80) { $("#b-info").focus(); toast("公開情報を貼ってください（AIはそこだけを根拠にします）"); break; }
+      t.dataset.busy = "1"; paintAI(); renderBriefOut(`<div class="panel"><span class="thinking">公開情報を読んで、仮説と質問をつくっています（30秒〜1分）</span></div>`);
+      try {
+        const r = normBrief(await aiJSON(briefPrompt(f), "default"));
+        if (!r.hypotheses.length) throw { code: "invalid_json" };
+        Brief.cur = Object.assign({}, f, { result: r, checks: {}, status: "draft" });
+        renderBriefOut();
+      } catch (e) { const m = aiErr(e); if (m) toast(m); if (Brief.cur && Brief.cur.result) renderBriefOut(); else renderBriefOut(`<div class="empty">ブリーフをつくれませんでした。もう一度押すか、「プロンプトをコピー」をお使いください。</div>`); }
+      t.dataset.busy = ""; paintAI();
+      break;
+    }
+    case "save-brief": case "check-brief": {
+      const b = Brief.cur; if (!b) break;
+      const bid = b.id || newId("b");
+      const data = { company: b.company, size: b.size, industry: b.industry, role: b.role, scene: b.scene, info: clip(b.info, 30000), result: b.result, checks: b.checks || {}, status: act === "check-brief" ? "checked" : (b.status || "draft") };
+      if (act === "check-brief") data.checkedBy = Store.uid || null; else if (b.checkedBy) data.checkedBy = b.checkedBy;
+      try { await Store.put("briefs", bid, data); Brief.cur = Object.assign({ id: bid }, data); renderBriefOut(); toast(act === "check-brief" ? "確認済みにしました" : "保存しました"); } catch (e) { toast(e.message); }
+      break;
+    }
+    case "open-brief": { const b = S.briefs.find((x) => x.id === id); if (!b) break; Brief.cur = Object.assign({}, b); fillBriefForm(b); renderBriefOut(); $("#brief-out").scrollIntoView({ behavior: "smooth", block: "start" }); break; }
+    case "del-brief":
+      if (!t.classList.contains("armed")) { t.classList.add("armed"); t.textContent = "もう一度押すと削除"; break; }
+      try { await Store.del("briefs", id); Brief.cur = null; renderBriefOut(`<div class="empty">削除しました。</div>`); } catch (e) { toast(e.message); }
+      break;
+    case "copy-brief-text": if (Brief.cur) copyText(briefAsText(Brief.cur), "ブリーフを"); break;
+
+    /* 社内説明の1枚 */
+    case "copy-onepager": { const did = $("#op-deal").value; if (!did) { toast("商談記録を選んでください"); break; } copyText(onepagerPrompt(did, $("#op-extra").value.trim()), "プロンプトを"); break; }
+    case "run-onepager": {
+      const did = $("#op-deal").value; if (!did) { $("#op-deal").focus(); toast("商談記録を選んでください"); break; }
+      const ta = $("#op-text"); const ctl = new AbortController(); Brief.ctl = ctl;
+      t.dataset.busy = "1"; paintAI(); $("#op-stop").hidden = false; ta.value = ""; ta.placeholder = "考えています…";
+      try {
+        const { text } = await AI.fn(onepagerPrompt(did, $("#op-extra").value.trim()), { cache: false, signal: ctl.signal, onText: ({ text }) => { ta.value = text; } });
+        ta.value = text;
+        const d = S.deals.find((x) => x.id === did) || {};
+        Brief.op = { dealId: did, company: d.company, text, status: "draft", id: null }; paintOpStatus();
+      } catch (e) { const m = aiErr(e); if (m) toast(m); if (e && e.text) ta.value = e.text; }
+      ta.placeholder = "ここに下書きが出ます。そのまま直せます。";
+      t.dataset.busy = ""; $("#op-stop").hidden = true; Brief.ctl = null; paintAI();
+      break;
+    }
+    case "save-onepager": case "check-onepager": {
+      const text = $("#op-text").value.trim(); if (!text) { toast("下書きがありません"); break; }
+      const did = $("#op-deal").value || Brief.op.dealId; const d = S.deals.find((x) => x.id === did) || {};
+      const oid = Brief.op.id || newId("o");
+      const data = { dealId: did, company: d.company || Brief.op.company || "（会社未選択）", text, status: act === "check-onepager" ? "checked" : (Brief.op.status || "draft") };
+      if (act === "check-onepager") data.checkedBy = Store.uid || null;
+      try { await Store.put("onepagers", oid, data); Brief.op = Object.assign({ id: oid }, data); paintOpStatus(); toast(act === "check-onepager" ? "講師の確認済みにしました" : "保存しました"); } catch (e) { toast(e.message); }
+      break;
+    }
+    case "open-onepager": { const o = S.onepagers.find((x) => x.id === id); if (!o) break; Brief.op = Object.assign({}, o); $("#op-deal").value = o.dealId || ""; $("#op-text").value = o.text || ""; paintOpStatus(); break; }
+    case "copy-op-text": { const v = $("#op-text").value; if (v) copyText(v, "下書きを"); break; }
+
+    /* ストーリー */
+    case "add-series": openSeries(null); break;
+    case "edit-series": openSeries(id); break;
+    case "archive-series": try { const s = seriesList().find((x) => x.id === id); await Store.put("series", id, Object.assign({}, s, { archived: true })); closeSheet(); } catch (e) { toast(e.message); } break;
+    case "open-cell": openCell(t.dataset.s, t.dataset.p); break;
+    case "copy-cell": if (editingCell) copyText(storyPrompt(editingCell.s, editingCell.p), "プロンプトを"); break;
+    case "run-cell": {
+      if (!editingCell) break;
+      if (!editingCell.s.core) { toast("先に連載の「核の視点」を入れてください"); break; }
+      const ta = $("#c-text"); const ctl = new AbortController(); Sheet.ctl = ctl;
+      t.dataset.busy = "1"; paintAI(); $("#c-stop").hidden = false; const before = ta.value; ta.value = ""; ta.placeholder = "考えています…";
+      try {
+        const { text } = await AI.fn(storyPrompt(editingCell.s, editingCell.p), { cache: false, signal: ctl.signal, onText: ({ text }) => { ta.value = text; } });
+        ta.value = text; const r = $$("input[name=c-status]"); r.forEach((x) => { x.checked = x.value === "draft"; });
+      } catch (e) { const m = aiErr(e); if (m) toast(m); if (ta.isConnected) ta.value = (e && e.text) || before; }
+      if (t.isConnected) { t.dataset.busy = ""; $("#c-stop").hidden = true; ta.placeholder = ""; }
+      Sheet.ctl = null; paintAI();
+      break;
+    }
+    case "save-cell": {
+      if (!editingCell) break;
+      const text = $("#c-text").value.trim(); const st = ($("input[name=c-status]:checked") || {}).value || "draft";
+      const data = { series: editingCell.s.id, phase: editingCell.p.id, text, status: st };
+      if (st === "checked") data.checkedBy = Store.uid || null;
+      try { await Store.put("story", editingCell.id, data); closeSheet(); toast("保存しました"); } catch (e) { toast(e.message); }
+      break;
+    }
+    case "check-series": {
+      const s = seriesList().find((x) => x.id === id); if (!s) break;
+      const filled = S.story.filter((x) => x.series === s.id && x.text).length;
+      openSheet(`<div class="stack"><div class="sheet-head"><div><h2>同じ話か確かめる</h2><p class="small muted">${esc(s.name)}・トーク${filled}／${PHASES.length}フェーズ</p></div><button class="btn ghost sm" type="button" data-act="close">閉じる</button></div>
+        <p class="small">核の視点と各フェーズのトークを読み、ずれ・つながっていない約束・言い方の揺れを探す。資料p.8「各フェーズで同じ話をしているかを、何で確かめるか」への一つの答え。</p>
+        ${aiButtons("run-consistency", "確かめる", "copy-consistency")}<div id="cs-out"></div></div>`);
+      editingCell = { s };
+      break;
+    }
+    case "copy-consistency": if (editingCell) copyText(consistencyPrompt(editingCell.s), "プロンプトを"); break;
+    case "run-consistency": {
+      if (!editingCell) break;
+      const s = editingCell.s;
+      if (S.story.filter((x) => x.series === s.id && x.text).length < 2) { toast("2つ以上のフェーズにトークを入れてから確かめてください"); break; }
+      t.dataset.busy = "1"; paintAI(); $("#cs-out").innerHTML = `<span class="thinking">読み比べています</span>`;
+      try {
+        const raw = await aiJSON(consistencyPrompt(s), "default");
+        const r = { consistent: !!(raw && raw.consistent), summary: str(raw && raw.summary), drifts: arr(raw && raw.drifts).filter((d) => typeof d === "object").map((d) => ({ phase: str(d.phase), issue: str(d.issue), fix: str(d.fix) })) };
+        const out = $("#cs-out"); if (!out) break;
+        out.innerHTML = `<div class="ai-out"><div class="ai-status">${r.consistent ? `<span class="chip good">大きなずれはない</span>` : `<span class="chip warn">ずれがある</span>`}<span class="chip warn">AIの見立て</span></div><p>${esc(r.summary)}</p>
+          ${(r.drifts || []).length ? `<ul class="hyps">${r.drifts.map((d) => `<li class="hyp"><div class="hyp-head"><span class="chip">${esc(d.phase)}</span><strong>${esc(d.issue)}</strong></div><div class="hyp-q"><span class="lbl">直し方</span>${esc(d.fix)}</div></li>`).join("")}</ul>` : ""}</div>`;
+      } catch (e) { const m = aiErr(e); if (m) toast(m); const out = $("#cs-out"); if (out) out.innerHTML = ""; }
+      if (t.isConnected) t.dataset.busy = ""; paintAI();
+      break;
+    }
+
+    /* 練習 */
+    case "copy-practice": {
+      readPracticeSetup();
+      copyText(practiceRules() + `\n\n---\nあなたが上の人事を演じ、私がインターンを演じます。あなたの最初のひと言から始めてください。私が「講評」と書いたら、ロールプレイを終えて、次の観点で1〜4点をつけ、良かった点・直す点・次に試す一言を返してください。\n${RUBRIC.map((r) => `- ${r.name}：${r.desc}`).join("\n")}`, "プロンプトを");
+      break;
+    }
+    case "start-practice": {
+      readPracticeSetup();
+      P.on = true; P.turns = []; P.feedback = null; P.rules = practiceRules();
+      t.textContent = "最初からやり直す";
+      await practiceTurn();
+      break;
+    }
+    case "send-practice": sendPractice(); break;
+    case "feedback-practice": feedbackPractice(); break;
+    case "stop-ai": if (P.ctl) P.ctl.abort(); if (Sheet.ctl) Sheet.ctl.abort(); if (Brief.ctl) Brief.ctl.abort(); break;
+  }
+});
+function readPracticeSetup() {
+  const r = $("input[name=p-persona]:checked"); if (r) P.persona = r.value;
+  const sc = $("#p-scene"); if (sc) P.scene = sc.value;
+  const se = $("#p-series"); if (se) P.series = se.value;
+}
+document.addEventListener("change", (ev) => {
+  const t = ev.target;
+  if (t.matches("[data-bcheck]") && Brief.cur) {
+    Brief.cur.checks = Object.assign({}, Brief.cur.checks || {}, { [t.dataset.bcheck]: t.checked });
+    if (Brief.cur.status === "checked" && !t.checked) Brief.cur.status = "draft";
+    const r = Brief.cur.result || {}; const keys = (r.hypotheses || []).map((_, i) => "h" + i).concat((r.factcheck || []).map((_, i) => "f" + i));
+    const btn = $("[data-act=check-brief]"); if (btn) btn.disabled = !(keys.length && keys.every((k) => Brief.cur.checks[k])) || Brief.cur.status === "checked";
+  }
+});
+document.addEventListener("input", (ev) => {
+  if (ev.target.id === "r-q") { Records.q = ev.target.value; clearTimeout(Records._t); Records._t = setTimeout(refreshView, 150); }
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
+
+/* ツールチップ */
+const tip = $("#tip");
+function showTip(el, x, y) { tip.textContent = el.dataset.tip; tip.hidden = false; const r = tip.getBoundingClientRect(); let L = x + 12, T = y + 14; if (L + r.width > innerWidth - 8) L = innerWidth - r.width - 8; if (T + r.height > innerHeight - 8) T = y - r.height - 10; tip.style.left = Math.max(8, L) + "px"; tip.style.top = Math.max(8, T) + "px"; }
+document.addEventListener("pointermove", (ev) => { const el = ev.target.closest && ev.target.closest("[data-tip]"); if (el) showTip(el, ev.clientX, ev.clientY); else tip.hidden = true; });
+document.addEventListener("pointerleave", () => { tip.hidden = true; });
+
+/* 起動 */
+window.addEventListener("hashchange", go);
+go();
+Store.init();
+initAI();
+})();
+</script>
