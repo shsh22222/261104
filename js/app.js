@@ -35,7 +35,8 @@
     return {
       v: 1,
       profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null },
-      xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null
+      xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
+      nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 }
     };
   }
   let S = fresh();
@@ -47,6 +48,7 @@
         const p = JSON.parse(raw);
         S = Object.assign(fresh(), p);
         S.profile = Object.assign(fresh().profile, p.profile || {});
+        S.nagame = Object.assign(fresh().nagame, p.nagame || {});
       }
     } catch (e) { storageOK = false; }
   }
@@ -151,6 +153,33 @@
     pop() {
       const c = this.c(); if (!c) return;
       this.tone(c, c.currentTime + 0.01, 500, 900, 0.25, 0.08);
+    },
+    bell() { // おりん：長く響く金属音
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.02;
+      [[528, 0.16, 4.5], [1457, 0.05, 2.6], [2851, 0.025, 1.4], [532, 0.06, 4.0]].forEach(([f, g, d]) => this.tone(c, t, f, f, g, d));
+    },
+    plop() { // 灯籠を水に置く音
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.01;
+      this.tone(c, t, 760, 260, 0.14, 0.18);
+      this.burst(c, t, 900, 1, 0.04, 0.12, 'lowpass');
+    },
+    river: null,
+    riverOn() { // 川の音（やわらかいノイズ）
+      const c = this.c(); if (!c || this.river) return;
+      try {
+        const s = c.createBufferSource(); s.buffer = this.noise(c); s.loop = true;
+        const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = 0.4;
+        const g = c.createGain(); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.05, c.currentTime + 1.5);
+        s.connect(f); f.connect(g); g.connect(c.destination); s.start();
+        this.river = { s, g };
+      } catch (e) { this.river = null; }
+    },
+    riverOff() {
+      const r = this.river; this.river = null;
+      if (!r || !this.ctx) return;
+      try { const t = this.ctx.currentTime; r.g.gain.setValueAtTime(r.g.gain.value, t); r.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8); r.s.stop(t + 0.9); } catch (e) { /* noop */ }
     }
   };
   function buzz(p) { try { if (S.profile.sound && navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 振動なし */ } }
@@ -228,11 +257,15 @@
     if (!s) return;
     s.wrap.classList.remove('open');
     setTimeout(() => s.wrap.remove(), 240);
-    if (!sheets.length && !ST) document.body.classList.remove('no-scroll');
+    if (!sheets.length && !overlayOpen()) document.body.classList.remove('no-scroll');
     if (s.onClose) s.onClose();
     try { if (s.prev && s.prev.focus) s.prev.focus({ preventScroll: true }); } catch (e) { /* noop */ }
   }
   function closeAllSheets() { while (sheets.length) closeSheet(); }
+  function overlayOpen() {
+    const a = document.getElementById('stage-root'), b = document.getElementById('calm-root');
+    return !!((a && a.childElementCount) || (b && b.childElementCount));
+  }
   function confirmSheet(msg, yesLabel, onYes) {
     openSheet(`<div class="confirm"><p class="confirm-msg">${esc(msg)}</p>
       <div class="btn-row"><button class="btn btn-ghost" data-act="closeSheet">やめる</button>
@@ -326,6 +359,7 @@
     const prog = r.next ? Math.round((S.xp - r.min) / (r.next.min - r.min) * 100) : 100;
     const ks = kudanStats();
     const due = S.prophecies.filter(p => p.status === 'open' && p.checkDate <= today()).length;
+    const gesoDue = (S.nagame.geso || []).filter(g => g.status === 'held' && new Date(g.due) <= new Date()).length;
     const tip = D.TIPS[Math.floor(Date.now() / 864e5) % D.TIPS.length];
     const draft = S.draft && S.draft.thought && S.draft.phase === 'edit';
     const h = new Date().getHours();
@@ -341,13 +375,14 @@
       <div class="hero-body">
         <p class="eyebrow">ココロ寄席 ${seki}</p>
         <h1 class="hero-title">頭の中のボケに、<br>ツッコミを。</h1>
+        <p class="hero-sub">ツッコめない不安は、眺めて流す。</p>
         <div class="rank-line">
           <div class="meter" role="progressbar" aria-valuenow="${prog}" aria-valuemin="0" aria-valuemax="100" aria-label="次の位までの進み具合"><i style="width:${prog}%"></i></div>
           <span class="rank-next">${r.next ? esc(r.next.name) + 'まで あと' + (r.next.min - S.xp) : '最高位です'}</span>
         </div>
         <dl class="tally">
           <div><dt>上演</dt><dd>${S.scripts.length}<small>回</small></dd></div>
-          <div><dt>妖怪</dt><dd>${metCount()}<small>/12</small></dd></div>
+          <div><dt>妖怪</dt><dd>${metCount()}<small>/${D.YOKAI.length}</small></dd></div>
           <div><dt>くだん的中率</dt><dd>${ks.pct == null ? '<span class="dash">—</span>' : ks.pct + '<small>%</small>'}</dd></div>
         </dl>
       </div>
@@ -363,14 +398,20 @@
           <span class="act-cta">${draft ? '続きから' : 'ネタを作る'}</span></span>
           <span class="act-art">${A.yokai('satori', 'smug')}</span>
         </button></li>
-        <li><a class="act" href="#yogen">
+        <li><a class="act act-nagame" href="#nagame">
           <span class="act-no">二</span>
+          <span class="act-body"><span class="act-name">ながめ席${gesoDue ? ` <em class="badge">札の引き取り ${gesoDue}</em>` : ''}</span>
+          <span class="act-desc">理由のない不安や止まらない考えを、ツッコまずに眺めて流す</span></span>
+          <span class="act-art">${A.yokai('nurarihyon', 'norm')}</span>
+        </a></li>
+        <li><a class="act" href="#yogen">
+          <span class="act-no">三</span>
           <span class="act-body"><span class="act-name">予言くだん${due ? ` <em class="badge">答え合わせ ${due}</em>` : ''}</span>
           <span class="act-desc">不安な予言を記録して、あとで答え合わせ</span></span>
           <span class="act-art">${A.yokai('kudan', 'norm')}</span>
         </a></li>
         <li><a class="act" href="#omikuji">
-          <span class="act-no">三</span>
+          <span class="act-no">四</span>
           <span class="act-body"><span class="act-name">行動おみくじ${S.mikujiNow ? ' <em class="badge">挑戦中</em>' : ''}</span>
           <span class="act-desc">元気の残りに合わせて、小さな一手を引く</span></span>
           <span class="act-art act-art-mikuji">${A.omikujiBox()}</span>
@@ -379,11 +420,11 @@
           <span class="nakairi-k">仲入り</span><span class="nakairi-t">休憩所 ― 呼吸・グラウンディング・相談先</span>
         </button></li>
         <li><a class="act act-sub" href="#zukan">
-          <span class="act-no">四</span>
-          <span class="act-body"><span class="act-name">妖怪図鑑</span><span class="act-desc">12の妖怪（考え方のクセ）となかよくなる</span></span>
+          <span class="act-no">五</span>
+          <span class="act-body"><span class="act-name">妖怪図鑑</span><span class="act-desc">${D.YOKAI.length}の妖怪（考え方のクセと心の状態）となかよくなる</span></span>
         </a></li>
         <li><a class="act act-sub" href="#neta">
-          <span class="act-no">五</span>
+          <span class="act-no">六</span>
           <span class="act-body"><span class="act-name">ネタ帳</span><span class="act-desc">これまでの漫才を、もう一度上演する</span></span>
         </a></li>
       </ol>
@@ -451,6 +492,7 @@
       <input type="range" id="emoBefore" min="0" max="100" step="5" value="${m.emoBefore}" data-out="emoBeforeOut" data-bind="emoBefore">
       <div class="range-scale"><span>かすか</span><span>いっぱい</span></div>
     </div>
+    <a class="detour" href="#nagame"><span class="detour-k">はっきりした出来事や考えがないときは</span><span class="detour-t">ながめ席で、ただ眺める</span></a>
     ${wizNav(0, '次へ', !m.emotion)}`;
   }
 
@@ -476,23 +518,35 @@
     ${wizNav(1, '鑑定へ', m.thought.trim().length < 2)}`;
   }
 
+  const DISTORTIONS = D.YOKAI.filter(y => y.kind !== 'state');
+  const STATES = D.YOKAI.filter(y => y.kind === 'state');
+  function vagueOf(text) {
+    const t = String(text || '');
+    return STATES.filter(y => y.keywords.some(k => t.includes(k))).map(y => y.id);
+  }
   function suggest(text) {
     const t = String(text || '');
-    return D.YOKAI
+    return DISTORTIONS
       .map(y => ({ id: y.id, s: y.keywords.reduce((a, k) => a + (t.includes(k) ? 1 : 0), 0) }))
       .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3).map(x => x.id);
   }
 
   function sKantei(m) {
     const sug = suggest(m.thought + ' ' + m.situation);
+    const vague = vagueOf(m.thought + ' ' + m.situation);
     return `${stepHead(2)}
     <h1 class="wiz-title">妖怪鑑定</h1>
     <p class="wiz-lead">このセリフは、どの妖怪のしわざ？ 2体まで選べます。</p>
     <blockquote class="boke-quote">「${esc(m.thought)}」</blockquote>
+    ${vague.length ? `<div class="vague-hint">
+      <div class="vague-art">${A.yokai(vague[0], 'norm')}</div>
+      <div><p><strong>${esc(D.yokaiById[vague[0]].name)}</strong>の気配もします。理由のはっきりしない不安や、止まらない考えには、言い返すより「眺める」ほうが合うことがあります。</p>
+      <a class="btn btn-small" href="#nagame">ながめ席へ</a></div>
+    </div>` : ''}
     ${sug.length
       ? `<p class="hint">ことばから鑑定すると……<strong>${sug.map(id => esc(D.yokaiById[id].name)).join('、')}</strong>が怪しい。</p>`
       : `<p class="hint">ピンとくるものを選んでください。迷ったら、いちばん近そうな1体でOK。</p>`}
-    <div class="yk-grid">${D.YOKAI.map(y => {
+    <div class="yk-grid">${DISTORTIONS.map(y => {
       const on = m.yokai.includes(y.id);
       return `<button class="yk-pick${on ? ' on' : ''}${sug.includes(y.id) ? ' sus' : ''}" aria-pressed="${on}" data-act="mzYokai" data-id="${y.id}">
         ${sug.includes(y.id) ? '<span class="sus-tag">怪しい</span>' : ''}
@@ -943,7 +997,7 @@
     Voice.stop();
     $('#stage-root').innerHTML = '';
     ST = null;
-    if (!sheets.length) document.body.classList.remove('no-scroll');
+    if (!sheets.length && !overlayOpen()) document.body.classList.remove('no-scroll');
   }
   function finishStage() {
     const s = ST; closeStage();
@@ -962,19 +1016,26 @@
 
   // ============ 妖怪図鑑 ============
   VIEWS.zukan = function () {
-    return `<header class="page-head"><h1 class="page-title">妖怪図鑑</h1><p class="page-sub">出会った妖怪 <strong>${metCount()}</strong> / 12</p></header>
-    <p class="page-lead">妖怪の正体は、だれにでもある「考え方のクセ」。退治はしません。漫才でツッコむたびに、なかよくなっていきます。</p>
-    <div class="zk-grid">${D.YOKAI.map((y, i) => {
+    const card = y => {
+      const i = D.YOKAI.indexOf(y);
       const r = S.yokai[y.id];
       const known = !!(r && r.met > 0);
-      return `<button class="zk-card${known ? '' : ' unknown'}" data-act="zukanOpen" data-id="${y.id}">
+      return `<button class="zk-card${known ? '' : ' unknown'}${y.kind === 'state' ? ' state' : ''}" data-act="zukanOpen" data-id="${y.id}">
         <span class="zk-no">其の${kanjiNum(i + 1)}</span>
         ${A.yokai(y.id, known && r.friend >= 3 ? 'happy' : 'norm', { silhouette: !known })}
         <span class="zk-name">${known ? esc(y.name) : '？？？'}</span>
         <span class="zk-dist">${esc(y.distortion)}</span>
         ${known ? hearts(r.friend) : '<span class="zk-hint">未発見</span>'}
       </button>`;
-    }).join('')}</div>`;
+    };
+    return `<header class="page-head"><h1 class="page-title">妖怪図鑑</h1><p class="page-sub">出会った妖怪 <strong>${metCount()}</strong> / ${D.YOKAI.length}</p></header>
+    <p class="page-lead">妖怪の正体は、だれにでもある「考え方のクセ」と「心の状態」。退治はしません。ツッコんだり眺めたりするたびに、なかよくなっていきます。</p>
+    <section aria-labelledby="zk-d-h"><h2 id="zk-d-h" class="sec-title"><span>考え方のクセ</span></h2>
+      <p class="zk-shelf-note">妖怪漫才でツッコむと、静かになる妖怪たち。</p>
+      <div class="zk-grid">${DISTORTIONS.map(card).join('')}</div></section>
+    <section aria-labelledby="zk-s-h"><h2 id="zk-s-h" class="sec-title"><span>心の状態</span></h2>
+      <p class="zk-shelf-note">ツッコむより、ながめ席で眺めると静かになる妖怪たち。</p>
+      <div class="zk-grid">${STATES.map(card).join('')}</div></section>`;
   };
   ACT.zukanOpen = el => {
     const y = D.yokaiById[el.dataset.id];
@@ -984,11 +1045,14 @@
       <div class="zk-detail-art">${A.yokai(y.id, known ? (r.friend >= 3 ? 'happy' : 'smug') : 'norm', { silhouette: !known })}</div>
       <p class="zk-detail-dist">${esc(y.distortion)}</p>
       <h2 class="zk-detail-name">${known ? esc(y.name) : '？？？'}</h2>
-      <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : 'まだ出会っていません。漫才で鑑定すると、正体がわかります。'}</p>
+      <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : y.kind === 'state' ? 'まだ出会っていません。ながめ席で眺めると、正体がわかります。' : 'まだ出会っていません。漫才で鑑定すると、正体がわかります。'}</p>
       <p>${esc(y.desc)}</p>
       <h3>口ぐせ</h3><ul class="kc">${y.kuchiguse.map(k => `<li>「${esc(k)}」</li>`).join('')}</ul>
       <h3>見分け方</h3><p>${esc(y.sign)}</p>
-      <h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>
+      ${y.kind === 'state'
+        ? `<h3>静かになる演目（ながめ席）</h3><ul class="weak">${y.practices.map(pid => { const P = D.NAGAME.practices.find(p => p.id === pid); return `<li><b>${esc(P.name)}</b><span>${esc(P.when)}</span></li>`; }).join('')}</ul>
+           <a class="btn btn-ghost" href="#nagame">ながめ席へ</a>`
+        : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>`}
       <h3>なかよし度</h3><div class="zk-friend">${hearts(r.friend)}<span class="muted">出会った回数 ${r.met}回</span></div>
       <h3>本音</h3>${r.friend >= 3 ? `<blockquote class="honne-q">${esc(y.honne)}</blockquote>` : `<p class="locked">なかよし度が3になると、本音が聞けます（あと${3 - r.friend}）</p>`}
     </div>`, { label: known ? y.name : '未発見の妖怪' });
@@ -1438,6 +1502,7 @@
       <h3>演目とCBTの対応</h3>
       <dl class="map">
         <div><dt>妖怪漫才</dt><dd>思考記録表（コラム法）、認知再構成法、ソクラテス式質問、脱フュージョン</dd></div>
+        <div><dt>ながめ席</dt><dd>マインドフルネス、ACTの脱フュージョン、メタ認知療法（心配の先送り・注意の訓練）、体の感覚への注意</dd></div>
         <div><dt>妖怪図鑑</dt><dd>認知の歪みの心理教育、問題の外在化</dd></div>
         <div><dt>予言くだん</dt><dd>行動実験、予測の検証</dd></div>
         <div><dt>行動おみくじ</dt><dd>行動活性化、楽しさ予測の検証</dd></div>
@@ -1450,7 +1515,9 @@
         <li>連続記録はつくりません。間があいても「おかえり」です。</li>
         <li>おみくじは何度でも引き直せます。課金はありません。</li>
         <li>しんどい言葉に気づいたら、笑いを止めます。</li>
+        <li>考えを止めることは目標にしません。気づけたら、それで一本です。</li>
       </ul>
+      <p class="muted small">ながめ席は、マインドフルネスやメタ認知療法に加えて、エックハルト・トールやネドじゅんが紹介している「考えと自分を同一視しない」「頭のおしゃべりから、いまの体の感覚に戻る」という考え方を参考にしています。特別な体験や不安が消えることは約束しません。やってみて、どう感じたかを確かめてください。</p>
       <p class="disclaimer">ココロ寄席は医療の代わりではありません。つらさが2週間以上続くとき、日常生活がままならないときは、医療機関や相談窓口を頼ってください。</p>
     </section>`;
   };
@@ -1623,6 +1690,22 @@
   });
   window.addEventListener('hashchange', route);
   window.addEventListener('pagehide', () => { if (MZ) saveDraft(); });
+
+  // ============ 拡張（ながめ席など）に渡す道具 ============
+  const CORE = {
+    D, A, $, $$, esc, nl2br, uid, clamp, ymd, today, addDays, fmtMD, sleep, reduceMotion, pick, kanjiNum,
+    state: () => S, save, Sfx, Voice, buzz, toast, openSheet, closeSheet, closeAllSheets, sheetBody, confirmSheet,
+    addXP, hearts, rankOf, isRisky, openSos, VIEWS, ACT, BIND, FORM,
+    render, rerender, go, current: () => current,
+    startManzaiWith(thought) {
+      RESULT = null;
+      MZ = newDraft();
+      MZ.thought = String(thought || '').slice(0, 300);
+      saveDraft();
+      go('manzai');
+    }
+  };
+  (window.KY_EXT || []).forEach(fn => { try { fn(CORE); } catch (e) { console.error(e); } });
 
   // ============ 開演 ============
   function boot() {

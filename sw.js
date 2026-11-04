@@ -1,11 +1,12 @@
 /* ココロ寄席 ― オフライン用のサービスワーカー（アプリ本体だけをキャッシュ） */
-const CACHE = 'kokoro-yose-v1';
+const CACHE = 'kokoro-yose-v2';
 const SHELL = [
   './',
   './index.html',
   './css/style.css',
   './js/data.js',
   './js/art.js',
+  './js/nagame.js',
   './js/app.js',
   './manifest.webmanifest',
   './icons/icon.svg',

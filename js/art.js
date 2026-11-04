@@ -232,6 +232,99 @@
     }
   };
 
+  // 心の状態の妖怪
+  DRAW.nurarihyon = function (m) {
+    return `
+      <path d="M26 116 Q28 86 60 84 Q92 86 94 116 Z" fill="#4b4766" stroke="${INK}" stroke-width="3"/>
+      <path d="M48 86 L60 104 L72 86" fill="none" stroke="#e9e2cf" stroke-width="4"/>
+      <path d="M34 72 Q26 44 40 22 Q58 0 82 12 Q98 26 90 56 Q88 82 62 86 Q40 86 34 72 Z" fill="#f0d6b8" stroke="${INK}" stroke-width="3"/>
+      <ellipse cx="56" cy="20" rx="9" ry="4" fill="#fff" opacity=".45" transform="rotate(-24 56 20)"/>
+      <path d="M44 56 Q50 52 56 56 M66 56 Q72 52 78 56" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>
+      ${eyes([[50, 64], [72, 64]], 5, m, { lid: '#f0d6b8' })}
+      ${mouth(61, 76, 7, m)}
+      <g transform="translate(96 98)">
+        <path d="M-10 -8 H10 L8 8 H-8 Z" fill="#7a9a6a" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M-5 -13 q3 -4 0 -8 M3 -13 q3 -4 0 -8" stroke="#cfc6b0" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      ${extras(m, { sweat: [92, 40], blush: [42, 80, 72] })}`;
+  };
+  DRAW.enenra = function (m) {
+    return `
+      <path d="M58 104 q-10 8 -2 16" fill="none" stroke="#9c96ae" stroke-width="6" stroke-linecap="round"/>
+      <path d="M30 96 Q12 96 13 80 Q14 64 28 63 Q24 44 44 40 Q50 22 70 26 Q90 20 96 42 Q114 46 108 64 Q118 80 102 88 Q96 102 80 96 Q72 110 58 104 Q48 114 36 106 Q22 106 30 96 Z" fill="#b4aec4" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M30 80 q8 -8 16 0 M84 46 q8 -6 14 2 M70 92 q8 6 16 -2" fill="none" stroke="#e4e0ec" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+      ${eyes([[50, 64], [74, 64]], 6.5, m, { lid: '#b4aec4' })}
+      ${mouth(62, 80, 7, m)}
+      ${extras(m, { sweat: [96, 52], blush: [42, 82, 74] })}`;
+  };
+
+  // ねこ（後ろ姿・月あかりの縁どり）
+  function cat() {
+    const C = '#191b26', R = '#cdbd92';
+    return `<svg class="cat-svg" viewBox="0 0 120 120" aria-hidden="true">
+      <path class="cat-tail" d="M84 110 Q110 108 106 84 Q104 74 95 76" fill="none" stroke="${R}" stroke-width="10" stroke-linecap="round"/>
+      <path class="cat-tail" d="M84 110 Q110 108 106 84 Q104 74 95 76" fill="none" stroke="${C}" stroke-width="6" stroke-linecap="round"/>
+      <path d="M32 118 Q26 84 46 70 Q60 62 74 70 Q94 84 88 118 Z" fill="${C}" stroke="${R}" stroke-width="2"/>
+      <g class="cat-ears">
+        <path d="M44 50 L45 28 L59 42 Z" fill="${C}" stroke="${R}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M76 50 L75 28 L61 42 Z" fill="${C}" stroke="${R}" stroke-width="2" stroke-linejoin="round"/>
+      </g>
+      <circle cx="60" cy="56" r="19" fill="${C}" stroke="${R}" stroke-width="2"/>
+    </svg>`;
+  }
+
+  // 考え（ネズミ）
+  function mouse() {
+    return `<svg class="mouse-svg" viewBox="0 0 60 40" aria-hidden="true">
+      <path d="M8 30 Q0 30 2 22" fill="none" stroke="#9a96a6" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="26" cy="27" rx="17" ry="11" fill="#b9b4c6" stroke="${INK}" stroke-width="2"/>
+      <circle cx="40" cy="16" r="6" fill="#d8d3e2" stroke="${INK}" stroke-width="2"/>
+      <circle cx="45" cy="24" r="2" fill="${INK}"/>
+      <circle cx="52" cy="28" r="2.4" fill="#e7a1ad"/>
+    </svg>`;
+  }
+
+  // 灯籠（川に流す）
+  function toro() {
+    return `<svg class="toro-svg" viewBox="0 0 48 60" aria-hidden="true">
+      <path d="M4 14 L24 4 L44 14 Z" fill="#3a2a1c" stroke="#1b1712" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="9" y="14" width="30" height="30" fill="#ffd38a" stroke="#3a2a1c" stroke-width="2"/>
+      <path d="M24 14 V44" stroke="#e7b05c" stroke-width="1.2"/>
+      <rect x="5" y="44" width="38" height="6" rx="1" fill="#3a2a1c"/>
+    </svg>`;
+  }
+
+  // すわる人（ハラに灯す）
+  function seated(opt) {
+    opt = opt || {};
+    const mini = !!opt.mini;
+    const spots = mini ? '' : `
+      <g class="spots">
+        <circle class="spot" data-part="face" cx="100" cy="70" r="30"/>
+        <ellipse class="spot" data-part="eyes" cx="100" cy="64" rx="44" ry="13"/>
+        <g class="spot" data-part="ears"><circle cx="66" cy="72" r="11"/><circle cx="134" cy="72" r="11"/></g>
+        <g class="spot" data-part="hands"><circle cx="76" cy="194" r="16"/><circle cx="124" cy="194" r="16"/></g>
+        <ellipse class="spot" data-part="feet" cx="100" cy="226" rx="70" ry="12"/>
+        <rect class="spot" data-part="room" x="6" y="6" width="188" height="228" rx="20"/>
+      </g>
+      <circle class="hara-light" cx="100" cy="174" r="12"/>
+      <g class="fog" aria-hidden="true">
+        <circle cx="66" cy="40" r="20"/><circle cx="92" cy="22" r="22"/><circle cx="124" cy="28" r="20"/>
+        <circle cx="140" cy="56" r="16"/><circle cx="58" cy="70" r="14"/><circle cx="112" cy="10" r="14"/>
+      </g>`;
+    const line = '#8d97c4';
+    return `<svg class="seated-svg${mini ? ' mini' : ''}" viewBox="0 0 200 240" aria-hidden="true">
+      <path d="M58 212 Q54 150 74 124 Q86 108 100 106 Q114 108 126 124 Q146 150 142 212 Z" fill="#2c3350" stroke="${line}" stroke-width="2.5"/>
+      <path d="M26 222 Q40 194 100 198 Q160 194 174 222 Q160 236 100 234 Q40 236 26 222 Z" fill="#262c45" stroke="${line}" stroke-width="2.5"/>
+      <path d="M74 140 Q66 176 76 194 M126 140 Q134 176 124 194" fill="none" stroke="${line}" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="76" cy="196" rx="13" ry="7" fill="#2c3350" stroke="${line}" stroke-width="2.5"/>
+      <ellipse cx="124" cy="196" rx="13" ry="7" fill="#2c3350" stroke="${line}" stroke-width="2.5"/>
+      <circle cx="100" cy="70" r="30" fill="#2c3350" stroke="${line}" stroke-width="2.5"/>
+      ${mini ? '<circle cx="100" cy="174" r="11" fill="#ffd38a"/>' : ''}
+      ${spots}
+    </svg>`;
+  }
+
   function yokai(id, mood, opt) {
     opt = opt || {};
     const fn = DRAW[id];
@@ -291,5 +384,5 @@
     </svg>`;
   }
 
-  window.KY_ART = { yokai, you, mic, omikujiBox };
+  window.KY_ART = { yokai, you, mic, omikujiBox, cat, mouse, toro, seated };
 })();

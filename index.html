@@ -41,9 +41,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M9 21h6"/><ellipse cx="12" cy="12" rx="6.5" ry="8"/><path d="M5.8 9h12.4M5.5 12h13M5.8 15h12.4"/></svg>
       <span>番組</span>
     </a>
-    <a class="tab" href="#zukan" data-tab="zukan">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><circle cx="12" cy="10" r="3"/><path d="M12 10h.01"/></svg>
-      <span>図鑑</span>
+    <a class="tab" href="#nagame" data-tab="nagame">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l4-2 4 2"/><rect x="8.5" y="5" width="7" height="7"/><path d="M7 12h10"/><path d="M2 17c2.5-1.6 4.5-1.6 7 0s4.5 1.6 7 0 4.5-1.6 6 0"/><path d="M2 21c2.5-1.6 4.5-1.6 7 0s4.5 1.6 7 0 4.5-1.6 6 0"/></svg>
+      <span>ながめ</span>
     </a>
     <a class="tab" href="#yogen" data-tab="yogen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M12 2v1.5M5 4.5l1 1M19 4.5l-1 1"/></svg>
@@ -52,6 +52,10 @@
     <a class="tab" href="#omikuji" data-tab="omikuji">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10l2 2v11l-2 2H7l-2-2V9z"/><path d="M12 7V2"/><path d="M10 11h4v7h-4z"/></svg>
       <span>みくじ</span>
+    </a>
+    <a class="tab" href="#zukan" data-tab="zukan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><circle cx="12" cy="10" r="3"/><path d="M12 10h.01"/></svg>
+      <span>図鑑</span>
     </a>
     <a class="tab" href="#neta" data-tab="neta">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v18M12 8h4M12 12h4M12 16h3"/></svg>
@@ -62,10 +66,12 @@
 
 <div id="sheet-root"></div>
 <div id="stage-root"></div>
+<div id="calm-root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="js/data.js"></script>
 <script src="js/art.js"></script>
+<script src="js/nagame.js"></script>
 <script src="js/app.js"></script>
 <!-- ARTIFACT:STRIP -->
 <script>
