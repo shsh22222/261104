@@ -38,7 +38,8 @@
       profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null, autoPlay: false, fontSize: 'normal' },
       netaSeen: {},
       xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
-      nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 }
+      nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 },
+      fuku: { finds: [], goods: [], days: {}, savors: 0 }
     };
   }
   let S = fresh();
@@ -51,6 +52,7 @@
         S = Object.assign(fresh(), p);
         S.profile = Object.assign(fresh().profile, p.profile || {});
         S.nagame = Object.assign(fresh().nagame, p.nagame || {});
+        S.fuku = Object.assign(fresh().fuku, p.fuku || {});
       }
     } catch (e) { storageOK = false; }
   }
@@ -166,6 +168,17 @@
       const t = c.currentTime + 0.01;
       this.tone(c, t, 760, 260, 0.14, 0.18);
       this.burst(c, t, 900, 1, 0.04, 0.12, 'lowpass');
+    },
+    ctxAny() { // 音を使う演目（お囃子の聞き分け）用。効果音の設定に関係なく使う
+      try {
+        if (!this.ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          this.ctx = new AC();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return this.ctx;
+      } catch (e) { return null; }
     },
     river: null,
     riverOn() { // 川の音（やわらかいノイズ）
@@ -309,19 +322,6 @@
     for (let i = 0; i < 5; i++) s += heart(i < n);
     return `<span class="hearts" role="img" aria-label="なかよし度 ${n}/5">${s}</span>`;
   }
-  function kudanStats() {
-    const ch = S.prophecies.filter(p => p.status === 'checked');
-    const score = ch.reduce((s, p) => s + (p.result === 'hit' ? 1 : p.result === 'partial' ? 0.5 : 0), 0);
-    const n = ch.length;
-    return {
-      n,
-      pct: n ? Math.round(score / n * 100) : null,
-      hits: ch.filter(p => p.result === 'hit').length,
-      misses: ch.filter(p => p.result === 'miss').length,
-      avgPred: n ? ch.reduce((s, p) => s + p.severity, 0) / n : null,
-      avgAct: n ? ch.reduce((s, p) => s + (p.actualSeverity || 0), 0) / n : null
-    };
-  }
   function mikujiStats() {
     const done = S.omikuji.filter(o => o.done);
     const n = done.length;
@@ -377,8 +377,8 @@
   VIEWS.home = function () {
     const r = rankOf(S.xp);
     const prog = r.next ? Math.round((S.xp - r.min) / (r.next.min - r.min) * 100) : 100;
-    const ks = kudanStats();
-    const due = S.prophecies.filter(p => p.status === 'open' && p.checkDate <= today()).length;
+    const fk = S.fuku || {};
+    const fukuN = (fk.finds || []).length + (fk.goods || []).length;
     const gesoDue = (S.nagame.geso || []).filter(g => g.status === 'held' && new Date(g.due) <= new Date()).length;
     const tip = D.TIPS[Math.floor(Date.now() / 864e5) % D.TIPS.length];
     const draft = S.draft && S.draft.thought && S.draft.phase === 'edit';
@@ -403,7 +403,7 @@
         <dl class="tally">
           <div><dt>上演</dt><dd>${S.scripts.length}<small>回</small></dd></div>
           <div><dt>妖怪</dt><dd>${metCount()}<small>/${D.YOKAI.length}</small></dd></div>
-          <div><dt>くだん的中率</dt><dd>${ks.pct == null ? '<span class="dash">—</span>' : ks.pct + '<small>%</small>'}</dd></div>
+          <div><dt>見つけた福</dt><dd>${fukuN}<small>こ</small></dd></div>
         </dl>
       </div>
     </section>
@@ -440,11 +440,11 @@
           <span class="act-desc">理由のない不安や止まらない考えを、ツッコまずに眺めて流す</span></span>
           <span class="act-art">${A.yokai('nurarihyon', 'norm')}</span>
         </a></li>
-        <li><a class="act" href="#yogen">
+        <li><a class="act act-fuku" href="#fuku">
           <span class="act-no">三</span>
-          <span class="act-body"><span class="act-name">予言くだん${due ? ` <em class="badge">答え合わせ ${due}</em>` : ''}</span>
-          <span class="act-desc">不安な予言を記録して、あとで答え合わせ</span></span>
-          <span class="act-art">${A.yokai('kudan', 'norm')}</span>
+          <span class="act-body"><span class="act-name">福さがし${CORE.fukuOdai ? ` <em class="badge badge-fuku">お題：${esc(CORE.fukuOdai())}</em>` : ''}</span>
+          <span class="act-desc">注意は、探したものを見つける。今日のお題と、小さなよいことを</span></span>
+          <span class="act-art">${A.yokai('zashiki', 'happy')}</span>
         </a></li>
         <li><a class="act" href="#omikuji">
           <span class="act-no">四</span>
@@ -569,8 +569,9 @@
     ${wizNav(1, '鑑定へ', m.thought.trim().length < 2)}`;
   }
 
-  const DISTORTIONS = D.YOKAI.filter(y => y.kind !== 'state');
+  const DISTORTIONS = D.YOKAI.filter(y => !y.kind);
   const STATES = D.YOKAI.filter(y => y.kind === 'state');
+  const FUKUY = D.YOKAI.filter(y => y.kind === 'fuku');
   function vagueOf(text) {
     const t = String(text || '');
     return STATES.filter(y => y.keywords.some(k => t.includes(k))).map(y => y.id);
@@ -1149,7 +1150,10 @@
       <div class="zk-grid">${DISTORTIONS.map(card).join('')}</div></section>
     <section aria-labelledby="zk-s-h"><h2 id="zk-s-h" class="sec-title"><span>心の状態</span></h2>
       <p class="zk-shelf-note">ツッコむより、ながめ席で眺めると静かになる妖怪たち。</p>
-      <div class="zk-grid">${STATES.map(card).join('')}</div></section>`;
+      <div class="zk-grid">${STATES.map(card).join('')}</div></section>
+    <section aria-labelledby="zk-f-h"><h2 id="zk-f-h" class="sec-title"><span>福をよぶ</span></h2>
+      <p class="zk-shelf-note">見ようとする人にだけ姿を見せる妖怪。福さがしで出会えます。</p>
+      <div class="zk-grid">${FUKUY.map(card).join('')}</div></section>`;
   };
   ACT.zukanOpen = el => {
     const y = D.yokaiById[el.dataset.id];
@@ -1159,11 +1163,14 @@
       <div class="zk-detail-art">${A.yokai(y.id, known ? (r.friend >= 3 ? 'happy' : 'smug') : 'norm', { silhouette: !known })}</div>
       <p class="zk-detail-dist">${esc(y.distortion)}</p>
       <h2 class="zk-detail-name">${known ? esc(y.name) : '？？？'}</h2>
-      <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : y.kind === 'state' ? 'まだ出会っていません。ながめ席で眺めると、正体がわかります。' : 'まだ出会っていません。漫才で鑑定すると、正体がわかります。'}</p>
+      <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : y.kind === 'state' ? 'まだ出会っていません。ながめ席で眺めると、正体がわかります。' : y.kind === 'fuku' ? 'まだ出会っていません。福さがしで、小さなよいことを見つけると会えます。' : 'まだ出会っていません。漫才で鑑定すると、正体がわかります。'}</p>
       <p>${esc(y.desc)}</p>
       <h3>口ぐせ</h3><ul class="kc">${y.kuchiguse.map(k => `<li>「${esc(k)}」</li>`).join('')}</ul>
       <h3>見分け方</h3><p>${esc(y.sign)}</p>
-      ${y.kind === 'state'
+      ${y.kind === 'fuku'
+        ? `<h3>出会える演目</h3><ul class="weak"><li><b>福さがし</b><span>今日のお題・今日の福・味わう</span></li></ul>
+           <a class="btn btn-ghost" href="#fuku">福さがしへ</a>`
+        : y.kind === 'state'
         ? `<h3>静かになる演目（ながめ席）</h3><ul class="weak">${y.practices.map(pid => { const P = D.NAGAME.practices.find(p => p.id === pid); return `<li><b>${esc(P.name)}</b><span>${esc(P.when)}</span></li>`; }).join('')}</ul>
            <a class="btn btn-ghost" href="#nagame">ながめ席へ</a>`
         : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>
@@ -1174,155 +1181,7 @@
     </div>`, { label: known ? y.name : '未発見の妖怪' });
   };
 
-  // ============ 予言くだん（行動実験） ============
-  VIEWS.yogen = function () {
-    const ks = kudanStats();
-    const open = S.prophecies.filter(p => p.status === 'open').sort((a, b) => a.checkDate.localeCompare(b.checkDate));
-    const done = S.prophecies.filter(p => p.status === 'checked').sort((a, b) => (b.checkedAt || '').localeCompare(a.checkedAt || ''));
-    const mood = ks.n === 0 ? 'smug' : ks.pct <= 30 ? 'meek' : ks.pct <= 60 ? 'norm' : 'smug';
-    const line = ks.n === 0
-      ? '予言しよう……おぬしの不安は、ぜんぶ当たる。……たぶん。'
-      : ks.pct <= 30 ? '……' + ks.n + '回のうち、ほとんど外れておる。ワシの予言、あてにならんのう。'
-        : ks.pct <= 60 ? '……半分くらいは、外れておるようじゃ。'
-          : '……当たることもある。それでも、おぬしは乗り越えてきた。';
-    return `<header class="page-head"><h1 class="page-title">予言くだん</h1><p class="page-sub">不安の予言を、答え合わせする演目</p></header>
-    <section class="kudan-board" aria-label="くだんの成績">
-      <div class="kudan-art">${A.yokai('kudan', mood)}</div>
-      <div class="kudan-score">
-        <p class="kudan-k">くだんの的中率</p>
-        <p class="kudan-pct">${ks.pct == null ? '<span class="dash">—</span>' : ks.pct + '<small>%</small>'}</p>
-        <p class="kudan-sub">${ks.n ? '答え合わせ ' + ks.n + '件<br>当たり ' + ks.hits + '・外れ ' + ks.misses + '・少し当たり ' + (ks.n - ks.hits - ks.misses) : 'まだ答え合わせがありません'}</p>
-      </div>
-      <p class="kudan-line">${esc(line)}</p>
-      ${ks.n ? `<div class="sev">
-        <p class="sev-k">ひどさ（0〜10）の平均</p>
-        <div class="ba-line"><span class="ba-tag">予言</span><span class="ba-track"><i class="ba-fill before" style="width:${ks.avgPred * 10}%"></i></span><span class="ba-v">${ks.avgPred.toFixed(1)}</span></div>
-        <div class="ba-line"><span class="ba-tag">実際</span><span class="ba-track"><i class="ba-fill after" style="width:${ks.avgAct * 10}%"></i></span><span class="ba-v">${ks.avgAct.toFixed(1)}</span></div>
-      </div>` : ''}
-    </section>
-    <button class="btn btn-primary btn-block" data-act="yogenNew">新しい予言を記録する</button>
-    <section aria-labelledby="yg-open-h">
-      <h2 id="yg-open-h" class="sec-title"><span>答え合わせ待ち</span></h2>
-      ${open.length ? `<ul class="yg-list">${open.map(ygOpenItem).join('')}</ul>` : '<p class="empty">いまは答え合わせ待ちの予言はありません。不安なことが浮かんだら、予言として書き残しておきましょう。</p>'}
-    </section>
-    ${done.length ? `<section aria-labelledby="yg-done-h"><h2 id="yg-done-h" class="sec-title"><span>答え合わせ済み</span></h2><ul class="yg-list">${done.map(ygDoneItem).join('')}</ul></section>` : ygSample()}
-    <aside class="howto"><p class="howto-k">この演目のねらい</p><p>不安は「未来の予言」です。予言を書き残して、あとで実際どうだったかを確かめると、不安の予言がどれくらい当たるのかが見えてきます。CBTでいう「行動実験」です。</p></aside>`;
-  };
-  function ygOpenItem(p) {
-    const due = p.checkDate <= today();
-    return `<li class="yg-item${due ? ' due' : ''}">
-      <div class="yg-main"><p class="yg-text">「${esc(p.text)}」</p>
-      <p class="yg-meta">確率 ${p.prob}%・ひどさ ${p.severity}/10・${due ? '<strong>答え合わせの日です</strong>' : fmtMD(p.checkDate) + 'に答え合わせ'}</p>
-      ${p.plan ? `<p class="yg-plan">確かめ方：${esc(p.plan)}</p>` : ''}</div>
-      <div class="yg-actions"><button class="btn btn-small${due ? ' btn-primary' : ''}" data-act="yogenCheck" data-id="${p.id}">答え合わせ</button>
-      <button class="link-btn small" data-act="yogenDelete" data-id="${p.id}">消す</button></div>
-    </li>`;
-  }
-  const RESULT_LABEL = { miss: '外れ', partial: '少し当たり', hit: '当たり' };
-  function ygDoneItem(p) {
-    return `<li class="yg-item done">
-      <div class="yg-main"><p class="yg-text">「${esc(p.text)}」</p>
-      <p class="yg-meta"><span class="res res-${p.result}">${RESULT_LABEL[p.result]}</span> ひどさ 予言${p.severity} → 実際${p.actualSeverity}</p>
-      ${p.outcome ? `<p class="yg-plan">実際：${esc(p.outcome)}</p>` : ''}
-      ${p.learned ? `<p class="yg-plan">気づき：${esc(p.learned)}</p>` : ''}</div>
-      <div class="yg-actions"><button class="link-btn small" data-act="yogenDelete" data-id="${p.id}">消す</button></div>
-    </li>`;
-  }
-  function ygSample() {
-    return `<section aria-label="見本"><h2 class="sec-title"><span>見本</span></h2>
-      <ul class="yg-list"><li class="yg-item done sample">
-        <div class="yg-main"><p class="yg-text">「明日の発表で言葉につまって、みんなに笑われる」</p>
-        <p class="yg-meta"><span class="res res-miss">外れ</span> ひどさ 予言8 → 実際2</p>
-        <p class="yg-plan">実際：一度つまったけど、笑った人はいなかった。質問が2つ来た。</p></div>
-        <span class="sample-tag">見本</span>
-      </li></ul></section>`;
-  }
-  ACT.yogenNew = () => {
-    openSheet(`<form class="form" data-form="yogenNew">
-      <h2 class="sheet-title">不安の予言を記録する</h2>
-      <p class="muted">ヨゲンくだんがささやく「これから起きること」を、そのまま書いてみましょう。</p>
-      <div class="field"><label for="ygText">予言</label>
-        <textarea id="ygText" rows="3" maxlength="200" required placeholder="例：明日の発表で言葉につまって、みんなに笑われる"></textarea></div>
-      <div class="field"><label for="ygProb">起きる確率（くだんの自信） <output id="ygProbOut">70%</output></label>
-        <input type="range" id="ygProb" min="0" max="100" step="5" value="70" data-out="ygProbOut" data-unit="%"></div>
-      <div class="field"><label for="ygSev">起きたら、どれくらいひどい？ <output id="ygSevOut">7</output></label>
-        <input type="range" id="ygSev" min="0" max="10" step="1" value="7" data-out="ygSevOut">
-        <div class="range-scale"><span>0 なんともない</span><span>10 最悪</span></div></div>
-      <div class="field"><label for="ygPlan">どうやって確かめる？ <span class="opt">任意</span></label>
-        <input type="text" id="ygPlan" maxlength="120" placeholder="例：逃げずに、とりあえず発表してみる" autocomplete="off"></div>
-      <div class="field"><label for="ygDate">答え合わせの日</label>
-        <input type="date" id="ygDate" value="${addDays(1)}" min="${today()}"></div>
-      <button class="btn btn-primary btn-block" type="submit">この予言を封印する</button>
-    </form>`, { label: '予言の記録' });
-  };
-  FORM.yogenNew = f => {
-    const text = $('#ygText', f).value.trim();
-    if (text.length < 2) { $('#ygText', f).focus(); toast('予言を書いてください'); return; }
-    S.prophecies.push({
-      id: uid(), created: new Date().toISOString(), text,
-      prob: +$('#ygProb', f).value, severity: +$('#ygSev', f).value,
-      plan: $('#ygPlan', f).value.trim(), checkDate: $('#ygDate', f).value || addDays(1), status: 'open'
-    });
-    const checkDate = $('#ygDate', f).value || addDays(1);
-    const up = addXP(D.XP.yogenNew);
-    save(); closeSheet(); rerender();
-    toast('予言を封印しました。' + fmtMD(checkDate) + 'に答え合わせしましょう。' + (up ? ' ' + up + 'に昇進！' : ''));
-    if (isRisky(text)) setTimeout(() => openSos(), 400);
-  };
-  ACT.yogenCheck = el => {
-    const p = S.prophecies.find(x => x.id === el.dataset.id);
-    if (!p) return;
-    openSheet(`<form class="form" data-form="yogenCheck" data-id="${p.id}">
-      <h2 class="sheet-title">答え合わせ</h2>
-      <blockquote class="boke-quote">「${esc(p.text)}」</blockquote>
-      <p class="muted small">予言したとき：確率 ${p.prob}%・ひどさ ${p.severity}/10</p>
-      <div class="field"><label for="ygOutcome">実際には、何が起きた？</label>
-        <textarea id="ygOutcome" rows="3" maxlength="300" placeholder="例：一度つまったけど、笑った人はいなかった"></textarea></div>
-      <fieldset class="field"><legend>くだんの予言は……</legend>
-        <div class="seg">
-          <label><input type="radio" name="ygRes" value="miss" checked><span>外れた</span></label>
-          <label><input type="radio" name="ygRes" value="partial"><span>少し当たった</span></label>
-          <label><input type="radio" name="ygRes" value="hit"><span>当たった</span></label>
-        </div></fieldset>
-      <div class="field"><label for="ygAct">実際のひどさ <output id="ygActOut">3</output></label>
-        <input type="range" id="ygAct" min="0" max="10" step="1" value="3" data-out="ygActOut">
-        <div class="range-scale"><span>0 なんともない</span><span>10 最悪</span></div></div>
-      <div class="field"><label for="ygLearned">気づいたこと <span class="opt">任意</span></label>
-        <input type="text" id="ygLearned" maxlength="160" placeholder="例：思ったより、みんな自分のことで精一杯" autocomplete="off"></div>
-      <button class="btn btn-primary btn-block" type="submit">答え合わせする</button>
-    </form>`, { label: '答え合わせ' });
-  };
-  FORM.yogenCheck = f => {
-    const p = S.prophecies.find(x => x.id === f.dataset.id);
-    if (!p) return;
-    p.outcome = $('#ygOutcome', f).value.trim();
-    p.result = (f.querySelector('input[name="ygRes"]:checked') || { value: 'miss' }).value;
-    p.actualSeverity = +$('#ygAct', f).value;
-    p.learned = $('#ygLearned', f).value.trim();
-    p.status = 'checked'; p.checkedAt = new Date().toISOString();
-    const up = addXP(D.XP.yogenCheck);
-    save();
-    const msg = {
-      miss: ['meek', 'ぐぬぬ……また外れた。', '予言は外れました。不安の予言は、こうして外れることのほうが多いのです。この記録が、次に不安になったときの反証になります。'],
-      partial: ['norm', '……半分だけ、か。', '少し当たって、少し外れました。ひどさは予言の' + p.severity + 'に対して、実際は' + p.actualSeverity + '。思っていた形とは、どこが違いましたか。'],
-      hit: ['norm', '……当たってしもうた。', '当たることもあります。それでも、あなたは今日を乗り切りました。「当たったとき、どう対処できたか」も、大事な記録です。']
-    }[p.result];
-    sheetBody().innerHTML = `<div class="yg-result">
-      <div class="yg-result-art">${A.yokai('kudan', msg[0])}</div>
-      <p class="yg-result-say">${esc(msg[1])}</p>
-      <p>${esc(msg[2])}</p>
-      <p class="xp-gain">経験 +${D.XP.yogenCheck}${up ? `　<strong>${esc(up)}に昇進しました</strong>` : ''}</p>
-      <button class="btn btn-primary btn-block" data-act="closeAndRender">閉じる</button>
-    </div>`;
-    if (p.result === 'miss') Sfx.chime();
-  };
   ACT.closeAndRender = () => { closeSheet(); rerender(); };
-  ACT.yogenDelete = el => {
-    const id = el.dataset.id;
-    confirmSheet('この予言を消しますか？ 元には戻せません。', '消す', () => {
-      S.prophecies = S.prophecies.filter(p => p.id !== id); save(); rerender(); toast('消しました');
-    });
-  };
 
   // ============ 行動おみくじ（行動活性化） ============
   const OM = { energy: 2, drawn: null, busy: false, prevText: null };
@@ -1538,7 +1397,8 @@
       ['ながめ席で眺めた', (g.sessions || []).filter(s => inWeek(s.date)).length, '回'],
       ['「はっ」と気づいた', (g.kizuki || []).filter(inWeek).length, '回'],
       ['心配を下足番に預けた', (g.geso || []).filter(x => inWeek(x.created)).length, '枚'],
-      ['予言を答え合わせした', S.prophecies.filter(p => inWeek(p.checkedAt)).length, '件'],
+      ['お題の福を見つけた', ((S.fuku || {}).finds || []).filter(x => inWeek(x.date)).length, 'こ'],
+      ['今日の福を書いた', ((S.fuku || {}).goods || []).filter(x => inWeek(x.date)).length, 'こ'],
       ['行動おみくじをやってみた', S.omikuji.filter(o => inWeek(o.date)).length, '回'],
       ['持ちネタを観た', Object.values(S.netaSeen || {}).filter(inWeek).length, '本']
     ].filter(r => r[1] > 0);
@@ -1796,7 +1656,7 @@
         <div><dt>持ちネタ集</dt><dd>認知の歪み12 × 生活の場面8 の見本96本。中核信念（無力・愛されない・価値がない）のタグつき</dd></div>
         <div><dt>ながめ席</dt><dd>マインドフルネス、ACTの脱フュージョン、メタ認知療法（心配の先送り・注意の訓練）、体の感覚への注意</dd></div>
         <div><dt>妖怪図鑑</dt><dd>認知の歪みの心理教育、問題の外在化</dd></div>
-        <div><dt>予言くだん</dt><dd>行動実験、予測の検証</dd></div>
+        <div><dt>福さがし</dt><dd>注意の向け先を選ぶ練習、ポジティブ心理学の「三つのよいこと」と「味わい」</dd></div>
         <div><dt>行動おみくじ</dt><dd>行動活性化、楽しさ予測の検証</dd></div>
         <div><dt>仲入り</dt><dd>呼吸法、5-4-3-2-1グラウンディング、相談先</dd></div>
       </dl>
@@ -1853,7 +1713,7 @@
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
     confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.draft = null; MZ = null;
+      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.draft = null; MZ = null;
       save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
   };
@@ -1866,7 +1726,7 @@
     r.readAsText(f);
   };
   ACT.wipeData = () => {
-    confirmSheet('すべての記録（ネタ帳・予言・おみくじ・図鑑・経験）を消します。元には戻せません。', 'すべて消す', () => {
+    confirmSheet('すべての記録（ネタ帳・ながめ席・福帳・おみくじ・図鑑・経験）を消します。元には戻せません。', 'すべて消す', () => {
       const keep = { name: S.profile.name, style: S.profile.style, sound: S.profile.sound, voice: S.profile.voice, autoPlay: S.profile.autoPlay, fontSize: S.profile.fontSize };
       S = fresh(); Object.assign(S.profile, keep, { seenIntro: true, lastVisit: new Date().toISOString() });
       MZ = null; RESULT = null; OM.drawn = null;

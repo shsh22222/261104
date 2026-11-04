@@ -187,30 +187,82 @@
       practices: ['hara', 'toro', 'ma'],
       honne: '形がないのは、何が怖いのか、きみにもわたしにもまだわからないから。じっと眺めてもらえると、少しずつ薄くなれるんだ。',
       voice: { pitch: 1.3, rate: 0.7 }
+    },
+    // ---- 福をよぶ妖怪（福さがしで出会う） ----
+    {
+      id: 'zashiki', kind: 'fuku', name: 'フクヨビ座敷わらし', yomi: 'ふくよびざしきわらし', origin: '座敷わらし',
+      distortion: '小さな福に気づく力',
+      desc: '家に福をもたらす子どもの姿の妖怪。見ようとする人にだけ、姿を見せる。日々の中の小さなよいことに、注意を向ける力そのもの。',
+      kuchiguse: ['ねえ、いま、いいことあったよ', 'ほら、そこにも'],
+      keywords: [],
+      sign: '「いいこと、ないかな」と探しはじめたとき、もうそばに来ている。',
+      practices: ['fuku'],
+      honne: 'ずっと前から、この家にいたよ。きみが見ようとしてくれたから、やっと会えたね。',
+      voice: { pitch: 1.7, rate: 1.0 }
     }
   ];
 
   // ---------- ながめ席（ぼんやり不安・止まらない思考） ----------
   const NAGAME = {
     states: [
-      { id: 'guruguru', label: 'ぐるぐる考えが止まらない', yokai: 'nurarihyon', rec: ['toro', 'geso'] },
-      { id: 'moya', label: '理由のわからない不安', yokai: 'enenra', rec: ['hara', 'toro'] },
-      { id: 'zawa', label: '頭の中がざわざわうるさい', yokai: 'nurarihyon', rec: ['ma', 'hara'] },
-      { id: 'nemuri', label: '寝る前に考えてしまう', yokai: 'nurarihyon', rec: ['geso', 'hara'] }
+      { id: 'guruguru', label: 'ぐるぐる考えが止まらない', yokai: 'nurarihyon', rec: ['toro', 'geso', 'ohayashi'], omakase: ['toro', 'hara'], omakaseName: 'おまかせ：流して、ハラへ' },
+      { id: 'moya', label: '理由のわからない不安', yokai: 'enenra', rec: ['hara', 'ippuku', 'toro'], omakase: ['ippuku', 'hara'], omakaseName: 'おまかせ：一服して、ハラへ' },
+      { id: 'zawa', label: '頭の中がざわざわうるさい', yokai: 'nurarihyon', rec: ['ohayashi', 'ma', 'hara'], omakase: ['ohayashi', 'ma'], omakaseName: 'おまかせ：聞き分けて、間をはかる' },
+      { id: 'kata', label: '体がこわばっている', yokai: 'enenra', rec: ['gyuto', 'hara', 'ippuku'], omakase: ['gyuto', 'hara'], omakaseName: 'おまかせ：ゆるめて、ハラへ' },
+      { id: 'nemuri', label: '寝る前に考えてしまう', yokai: 'nurarihyon', rec: ['geso', 'gyuto', 'hara'], omakase: ['gyuto', 'hara'], omakaseName: 'おやすみ席', voice: true }
+    ],
+    groups: [
+      { id: 'nagasu', label: '流す', desc: '考えを、追いかけずに見送る' },
+      { id: 'modoru', label: '体に戻る', desc: '頭のおしゃべりから、いまの感覚へ' },
+      { id: 'sodateru', label: '注意を育てる', desc: '注意は、自分で向け直せる' }
     ],
     practices: [
-      { id: 'toro', name: '灯籠ながし', min: '1〜5分', when: '考えが次々に浮かんで止まらないとき',
+      { id: 'toro', group: 'nagasu', name: '灯籠ながし', min: '1〜5分', when: '考えが次々に浮かんで止まらないとき',
         desc: '浮かんだ考えに一言だけラベルをつけて、灯籠にのせて川に流します。追いかけず、見送るだけ。',
         tech: 'ACTの「流れに葉を浮かべる」、ラベリング' },
-      { id: 'ma', name: '間（ま）をはかる', min: '約3分', when: '頭の中がうるさいとき',
+      { id: 'ma', group: 'sodateru', name: '間（ま）をはかる', min: '約3分', when: '頭の中がうるさいとき',
         desc: 'ねこがネズミの穴を見張るように、次の考えが出てくるのを待ちます。考えと考えのあいだの「間」に気づく演目です。',
         tech: '考えている自分を眺める練習、注意の訓練' },
-      { id: 'hara', name: 'ハラに灯す', min: '約3分', when: '理由のわからない不安があるとき',
+      { id: 'hara', group: 'modoru', name: 'ハラに灯す', min: '約3分', when: '理由のわからない不安があるとき',
         desc: '頭のおしゃべりから、見えるもの、聞こえる音、手のひら、おへその下へと、注意を外から内へ下ろしていきます。',
         tech: 'マインドフルネス、体の感覚への注意、呼吸' },
-      { id: 'geso', name: '下足札', min: '1分', when: '同じ心配が何度も戻ってくるとき・寝る前',
+      { id: 'geso', group: 'nagasu', name: '下足札', min: '1分', when: '同じ心配が何度も戻ってくるとき・寝る前',
         desc: '考えごとを下足番に預けて、札を受け取ります。決めた時間に引き取りに来て、まだ考える必要があるかを決めます。',
-        tech: 'メタ認知療法の「心配の先送り（心配タイム）」' }
+        tech: 'メタ認知療法の「心配の先送り（心配タイム）」' },
+      { id: 'ippuku', group: 'modoru', name: '一服', min: '約2分', when: 'そわそわして、地に足がつかないとき',
+        desc: 'お茶か水を一杯。器の重さ、香り、ひとくちの温度、のどを通る感じ、余韻を、順に味わいます。飲みものがなければ、両手でお椀の形をつくって「見立て」で。',
+        tech: 'マインドフルネス（飲む瞑想）、茶の湯' },
+      { id: 'gyuto', group: 'modoru', name: 'ぎゅっとふわっ', min: '約2分', when: '肩や体がこわばっているとき・寝る前',
+        desc: '手、肩、顔、足の順に、7割くらいの力で5秒ぎゅっと力を入れ、10秒ふわっとゆるめます。ゆるんでいく感じを味わいます。',
+        tech: '漸進的筋弛緩法（リラクセーション法）' },
+      { id: 'ohayashi', group: 'sodateru', name: 'お囃子の聞き分け', min: '約2分', when: '注意が考えに持っていかれやすいとき',
+        desc: '太鼓、鉦（かね）、三味線、笛。4つの音を一つずつ聞き分け、すばやく切りかえ、最後に全部をいっしょに聞きます。注意は、自分で向け直せます。',
+        tech: 'メタ認知療法の注意訓練（ATT）', sound: true }
+    ],
+    ippuku: [
+      { part: 'hold', title: '器を持つ', text: '両手で器を包みます。重さと、あたたかさ（つめたさ）を、手のひらで感じます。', sec: 20 },
+      { part: 'kaori', title: '香り', text: '器を顔に近づけて、香りをゆっくり吸いこみます。香りがなければ、湯気や空気の感じを。', sec: 15 },
+      { part: 'hitokuchi', title: 'ひとくち', text: 'ひとくちだけ含んで、すぐには飲みこまず、舌の上の温度と味を感じます。', sec: 20 },
+      { part: 'nodo', title: 'のどを通る', text: 'ゆっくり飲みこみます。のどからお腹へ、下りていく感じを追いかけます。', sec: 15 },
+      { part: 'yoin', title: '余韻', text: '器を置いて、口の中に残る味と、体のあたたかさを、そのまま味わいます。', sec: 20 }
+    ],
+    gyuto: [
+      { part: 'hands', title: '手', text: '両手をぎゅっと握ります。7割くらいの力で。', relax: '手をひらいて、ふわっ。指先からゆるんでいく感じを味わいます。' },
+      { part: 'shoulders', title: '肩', text: '肩を耳に近づけるように、ぎゅっとすくめます。', relax: '肩をストンと落として、ふわっ。重さが下りていきます。' },
+      { part: 'face', title: '顔', text: '目をぎゅっとつぶり、顔の真ん中に、くしゃっと力を集めます。', relax: '顔をふわっ。眉間とあごが、ほどけていきます。' },
+      { part: 'feet', title: '足', text: 'つま先を、自分のほうへぐっと引き寄せます。つりそうなら、軽めに。', relax: 'ふわっ。足の重さを、床にあずけます。' },
+      { part: 'room', title: '全身', text: '最後に、全身にいっぺんに、ぎゅっ。', relax: 'ふわーっ。体ぜんぶが、ゆるんでいくのを眺めます。' }
+    ],
+    ohayashi: [
+      { focus: 'taiko', title: '太鼓だけを聞く', text: '左のほうで鳴る、低い太鼓の音にだけ、注意のライトを当てます。ほかの音は、追い出さなくて大丈夫。', sec: 20 },
+      { focus: 'kane', title: '鉦（かね）だけを聞く', text: '右のほうで鳴る、チキチンという高い音に、注意を移します。', sec: 20 },
+      { focus: 'shami', title: '三味線だけを聞く', text: 'ベン、ベンとはじく音に、注意を移します。', sec: 20 },
+      { focus: 'fue', title: '笛だけを聞く', text: '長くのびる、細い笛の音に、注意を移します。', sec: 20 },
+      { focus: 'switch', title: '切りかえる', text: '光った楽器に、すばやく注意を移していきます。', sec: 24 },
+      { focus: 'all', title: '全部いっしょに聞く', text: '注意を大きく広げて、お囃子全体を、ひとつの音として聞きます。', sec: 20 }
+    ],
+    instruments: [
+      { id: 'taiko', label: '太鼓' }, { id: 'kane', label: '鉦' }, { id: 'shami', label: '三味線' }, { id: 'fue', label: '笛' }
     ],
     labels: ['心配', '反省会', '段取り', '想像', '比べっこ', '過去', '未来', '人のこと', '体のこと', 'なんとなく'],
     notice: [
@@ -418,13 +470,29 @@
     { min: 500, name: '名人' }
   ];
 
-  const XP = { manzai: 15, yogenNew: 5, yogenCheck: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1 };
+  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3 };
+
+  // ---------- 福さがし（注意を、よいことに向ける） ----------
+  const FUKU = {
+    odai: [
+      '赤いもの', '丸いもの', 'やさしい音', 'いいにおい', 'ちいさな親切', '笑い声', '空の色',
+      'おいしい一口', '手ざわりのいいもの', '季節を感じるもの', '誰かのがんばり', '自分ができたこと',
+      '光がきれいなところ', 'ほっとする場所', '小さな花や緑', 'ありがとうと言えること'
+    ],
+    examples: ['ごはんがおいしかった', '空がきれいだった', '誰かと笑った', 'ちゃんと休めた', 'お湯があたたかかった', 'やることをひとつ終えた', '好きな曲を聴いた', 'ねこ（いきもの）を見た'],
+    zashikiLines: [
+      'ねえ、いま、いいことあったよ。',
+      '見ようとしてくれたから、ここにいるよ。',
+      'ちいさい福ほど、よく光るんだ。',
+      '見つからない日も、さがしてくれてありがとう。'
+    ]
+  };
 
   // ---------- 今日の小噺（心理教育） ----------
   const TIPS = [
     '考えは「事実」ではなく、頭に浮かんだ「セリフ」。セリフなら、ツッコめる。',
     '気分は、行動のあとからついてくることが多い。やる気を待たずに、5分だけ。',
-    '不安の予言は、外れることのほうがずっと多い。答え合わせで確かめてみよう。',
+    '注意は、向け直せる。考えに持っていかれても、また戻ってくればいい。',
     '自分には厳しく、友だちにはやさしい。その優しさを、自分にも少しだけ。',
     '「いつも」「絶対」「みんな」が出てきたら、イツモ入道のサインかも。',
     '妖怪は敵じゃない。あなたを守ろうとして、ちょっと張り切りすぎているだけ。',
@@ -481,7 +549,7 @@
 
   window.KY_DATA = {
     YOKAI, NAGAME, TSUKKOMI, TELOPS, END_TELOP, EMOTIONS, EXAMPLE_THOUGHTS, STEMS, ACTIONS, CATEGORIES, FORTUNES, KYO_ACTION,
-    OMIKUJI_LINES, RANKS, XP, TIPS, RISK_WORDS, RISK_REGEX, HOTLINES, SAMPLE,
+    OMIKUJI_LINES, RANKS, XP, FUKU, TIPS, RISK_WORDS, RISK_REGEX, HOTLINES, SAMPLE,
     yokaiById: Object.fromEntries(YOKAI.map(y => [y.id, y])),
     tsukkomiById: Object.fromEntries(TSUKKOMI.map(t => [t.id, t])),
     emotionById: Object.fromEntries(EMOTIONS.map(e => [e.id, e]))

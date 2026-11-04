@@ -258,6 +258,56 @@
       ${extras(m, { sweat: [96, 52], blush: [42, 82, 74] })}`;
   };
 
+  // 福をよぶ妖怪
+  DRAW.zashiki = function (m) {
+    return `
+      <path d="M30 116 Q32 84 60 82 Q88 84 90 116 Z" fill="#c8352b" stroke="${INK}" stroke-width="3"/>
+      <path d="M40 92 Q48 98 44 108 M80 92 Q72 98 76 108" fill="none" stroke="#f3c2b3" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      <rect x="40" y="98" width="40" height="8" rx="1" fill="#e3b04b" stroke="${INK}" stroke-width="2"/>
+      <path d="M50 84 L60 98 L70 84" fill="none" stroke="#f6f0e1" stroke-width="4"/>
+      <circle cx="60" cy="58" r="26" fill="#f6e2cc" stroke="${INK}" stroke-width="3"/>
+      <path d="M32 66 Q29 30 60 29 Q91 30 88 66 L80 66 L80 49 Q60 44 40 49 L40 66 Z" fill="#1f1a17"/>
+      ${eyes([[51, 62], [69, 62]], 4.2, m === 'smug' ? 'happy' : m, { lid: '#f6e2cc' })}
+      ${mouth(60, 72, 5, m === 'smug' ? 'happy' : m)}
+      ${blush(45, 75, 69)}
+      <g transform="translate(96 98)">
+        <circle r="10" fill="#f6f0e1" stroke="${INK}" stroke-width="2"/>
+        <path d="M-10 0 H10 M0 -10 V10 M-7 -7 L7 7 M7 -7 L-7 7" stroke="#c8352b" stroke-width="2"/>
+      </g>
+      ${extras(m, { sweat: [86, 42] })}`;
+  };
+
+  // 茶碗（一服）
+  function chawan() {
+    return `<svg class="chawan-svg" viewBox="0 0 200 170" aria-hidden="true">
+      <g class="steam" fill="none" stroke="#e9e7f3" stroke-width="4" stroke-linecap="round">
+        <path class="s1" d="M80 56 q-10 -14 0 -26 q10 -12 0 -24"/>
+        <path class="s2" d="M100 50 q-10 -14 0 -26 q10 -12 0 -24"/>
+        <path class="s3" d="M120 56 q-10 -14 0 -26 q10 -12 0 -24"/>
+      </g>
+      <circle class="cup-aura" cx="100" cy="110" r="84"/>
+      <path d="M28 82 Q30 146 100 148 Q170 146 172 82 Z" fill="#3f5d4f" stroke="#8d97c4" stroke-width="3"/>
+      <path d="M40 118 Q100 132 160 118" fill="none" stroke="#5f8a6e" stroke-width="3" opacity=".7"/>
+      <rect x="78" y="146" width="44" height="10" rx="3" fill="#2f463b" stroke="#8d97c4" stroke-width="2"/>
+      <ellipse cx="100" cy="82" rx="72" ry="15" fill="#2f463b" stroke="#8d97c4" stroke-width="3"/>
+      <ellipse class="tea" cx="100" cy="84" rx="62" ry="10" fill="#8db255"/>
+      <ellipse class="ripple" cx="100" cy="84" rx="20" ry="3.5" fill="none" stroke="#d8eab4" stroke-width="2"/>
+      <path class="down" d="M100 96 V138" stroke="var(--night-accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 8"/>
+    </svg>`;
+  }
+
+  // お囃子の楽器
+  function instrument(id) {
+    const L = '#e9e7f3';
+    const parts = {
+      taiko: `<ellipse cx="30" cy="16" rx="20" ry="7" fill="#f3e3c3" stroke="${L}" stroke-width="2"/><path d="M10 16 V40 Q30 50 50 40 V16" fill="#8a3a22" stroke="${L}" stroke-width="2"/><path d="M14 22 V40 M46 22 V40" stroke="#e3b04b" stroke-width="2" stroke-dasharray="2 4"/>`,
+      kane: `<path d="M30 6 V12" stroke="${L}" stroke-width="2.5"/><path d="M14 40 Q14 14 30 12 Q46 14 46 40 Z" fill="#c9a24a" stroke="${L}" stroke-width="2"/><path d="M10 40 H50" stroke="${L}" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="46" r="4" fill="#c9a24a" stroke="${L}" stroke-width="2"/>`,
+      shami: `<rect x="17" y="30" width="26" height="22" rx="4" fill="#f3e3c3" stroke="${L}" stroke-width="2"/><path d="M30 30 V2" stroke="#6b4524" stroke-width="5" stroke-linecap="round"/><path d="M27 4 H33" stroke="${L}" stroke-width="2"/><path d="M27 6 V48 M30 6 V48 M33 6 V48" stroke="#2b2420" stroke-width=".8"/>`,
+      fue: `<rect x="4" y="24" width="52" height="8" rx="4" fill="#8a5a2b" stroke="${L}" stroke-width="2"/><circle cx="18" cy="28" r="1.8" fill="#1b1712"/><circle cx="26" cy="28" r="1.8" fill="#1b1712"/><circle cx="34" cy="28" r="1.8" fill="#1b1712"/><circle cx="42" cy="28" r="1.8" fill="#1b1712"/><path d="M8 24 V32 M50 24 V32" stroke="#c8352b" stroke-width="2"/>`
+    };
+    return `<svg class="inst-svg" viewBox="0 0 60 56" aria-hidden="true">${parts[id] || ''}</svg>`;
+  }
+
   // ねこ（後ろ姿・月あかりの縁どり）
   function cat() {
     const C = '#191b26', R = '#cdbd92';
@@ -304,6 +354,7 @@
         <ellipse class="spot" data-part="eyes" cx="100" cy="64" rx="44" ry="13"/>
         <g class="spot" data-part="ears"><circle cx="66" cy="72" r="11"/><circle cx="134" cy="72" r="11"/></g>
         <g class="spot" data-part="hands"><circle cx="76" cy="194" r="16"/><circle cx="124" cy="194" r="16"/></g>
+        <ellipse class="spot" data-part="shoulders" cx="100" cy="122" rx="46" ry="14"/>
         <ellipse class="spot" data-part="feet" cx="100" cy="226" rx="70" ry="12"/>
         <rect class="spot" data-part="room" x="6" y="6" width="188" height="228" rx="20"/>
       </g>
@@ -384,5 +435,5 @@
     </svg>`;
   }
 
-  window.KY_ART = { yokai, you, mic, omikujiBox, cat, mouse, toro, seated };
+  window.KY_ART = { yokai, you, mic, omikujiBox, cat, mouse, toro, seated, chawan, instrument };
 })();
