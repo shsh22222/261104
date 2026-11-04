@@ -3,6 +3,7 @@
   'use strict';
   const D = window.KY_DATA;
   const A = window.KY_ART;
+  const NT = window.KY_NETA;
 
   // ============ 小道具 ============
   const $ = (s, r) => (r || document).querySelector(s);
@@ -34,7 +35,8 @@
   function fresh() {
     return {
       v: 1,
-      profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null },
+      profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null, autoPlay: false, fontSize: 'normal' },
+      netaSeen: {},
       xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
       nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 }
     };
@@ -280,11 +282,24 @@
     D.RANKS.forEach((k, i) => { if (xp >= k.min) { r = k; next = D.RANKS[i + 1] || null; } });
     return { name: r.name, min: r.min, next };
   }
+  let pendingRank = null;
   function addXP(n) {
     const before = rankOf(S.xp).name;
     S.xp += n;
     const after = rankOf(S.xp).name;
-    return after !== before ? after : null;
+    if (after !== before) { pendingRank = after; return after; }
+    return null;
+  }
+  // 昇進披露口上（次の画面描画のあとに、晴れ舞台としてお披露目）
+  function celebrateRank(rank) {
+    Sfx.hyoshigi();
+    openSheet(`<div class="kojo">
+      <div class="mekuri mekuri-big" aria-hidden="true"><span class="mekuri-rank">${esc(rank)}</span><span class="mekuri-name">${esc(S.profile.name)}</span></div>
+      <p class="eyebrow">昇進披露口上</p>
+      <h2 class="sheet-title">「${esc(rank)}」に昇進いたしました</h2>
+      <p class="kojo-text">高いところからではございますが、ひとことご挨拶を申し上げます。このたび${esc(S.profile.name)}、「${esc(rank)}」に昇進いたしました。これもひとえに、頭の中の妖怪たちが毎晩せっせとボケつづけてくれたおかげでございます。今後とも、ツッコんだり、眺めたり、休んだりしながら、精進してまいります。</p>
+      <button class="btn btn-primary btn-block" data-act="closeSheet">よっ、待ってました！</button>
+    </div>`, { label: '昇進披露口上' });
   }
   function metCount() { return D.YOKAI.filter(y => S.yokai[y.id] && S.yokai[y.id].met > 0).length; }
   function hearts(n) {
@@ -328,6 +343,7 @@
   const VIEWS = {};
   function route() {
     const h = (location.hash || '').replace('#', '');
+    if (ST) closeStage(); // 画面を移ったら、上演は幕を下ろす
     render(VIEWS[h] ? h : 'home');
   }
   function render(name, keepScroll) {
@@ -337,11 +353,15 @@
     v.innerHTML = VIEWS[name]();
     v.dataset.view = name;
     $$('[data-tab]').forEach(t => {
-      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home');
+      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta');
       t.classList.toggle('is-active', on);
       if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     });
     if (!keepScroll) window.scrollTo(0, 0);
+    if (pendingRank) {
+      const r = pendingRank; pendingRank = null;
+      setTimeout(() => { if (!overlayOpen()) celebrateRank(r); else pendingRank = r; }, 600);
+    }
   }
   function rerender() { render(current, true); }
   function go(name) {
@@ -385,6 +405,22 @@
           <div><dt>妖怪</dt><dd>${metCount()}<small>/${D.YOKAI.length}</small></dd></div>
           <div><dt>くだん的中率</dt><dd>${ks.pct == null ? '<span class="dash">—</span>' : ks.pct + '<small>%</small>'}</dd></div>
         </dl>
+      </div>
+    </section>
+
+    <section class="seat-pick" aria-labelledby="seat-h">
+      <h2 id="seat-h" class="seat-q">いま、頭の中は？</h2>
+      <div class="seat-btns">
+        <button class="seat seat-tsukkomi" data-act="startManzai">
+          <span class="seat-k">はっきりしたセリフが浮かんでいる</span>
+          <span class="seat-t">ツッコむ席へ</span>
+          <span class="seat-s">妖怪漫才</span>
+        </button>
+        <a class="seat seat-nagame" href="#nagame">
+          <span class="seat-k">もやもや・ぐるぐるしている</span>
+          <span class="seat-t">ながめる席へ</span>
+          <span class="seat-s">ながめ席</span>
+        </a>
       </div>
     </section>
 
@@ -459,6 +495,20 @@
   function setNext(ok) { const b = $('#mzNextBtn'); if (b) b.disabled = !ok; }
 
   ACT.startManzai = () => { RESULT = null; mz(); saveDraft(); go('manzai'); };
+  function startManzaiWith(thought, fromNeta) {
+    const run = () => {
+      RESULT = null;
+      MZ = newDraft();
+      MZ.thought = String(thought || '').slice(0, 300);
+      if (fromNeta) MZ.fromNeta = fromNeta;
+      saveDraft();
+      go('manzai');
+    };
+    const d = MZ || S.draft;
+    if (d && d.phase === 'edit' && d.thought && d.thought !== thought) {
+      confirmSheet('書きかけのネタがあります。新しいネタに置きかえますか？（書きかけは消えます）', '置きかえる', run);
+    } else run();
+  }
 
   VIEWS.manzai = function () {
     if (RESULT) return mzDone(RESULT);
@@ -508,7 +558,8 @@
       <label for="thought">ボケ（頭の中のセリフ）</label>
       <textarea id="thought" rows="3" maxlength="300" placeholder="例：どうせ、みんなに嫌われてる" data-bind="thought">${esc(m.thought)}</textarea>
       <div class="examples"><span class="examples-k">例から選ぶ</span>${D.EXAMPLE_THOUGHTS.map((t, i) =>
-        `<button class="chip chip-sm" data-act="mzExample" data-i="${i}">${esc(t)}</button>`).join('')}</div>
+        `<button class="chip chip-sm" data-act="mzExample" data-i="${i}">${esc(t)}</button>`).join('')}
+        <button class="chip chip-sm chip-lib" data-act="pickNeta">持ちネタ集（${NT.LIST.length}本）から探す</button></div>
     </div>
     <div class="field">
       <label for="beliefBefore">どれくらい本気で信じてる？ <output id="beliefBeforeOut">${m.beliefBefore}%</output></label>
@@ -574,13 +625,14 @@
       <button class="btn btn-small" data-act="kouzaFx" data-fx="helium">ヘリウム声</button>
       <button class="btn btn-small" data-act="kouzaFx" data-fx="slow">スローモー</button>
       <button class="btn btn-small" data-act="kouzaFx" data-fx="tiny">ちっちゃく</button>
+      <button class="btn btn-small fx-telop" data-act="kouzaFx" data-fx="telop">テロップを出す</button>
     </div>
     ${voiceNote}
     <div class="defuse">
       <p class="defuse-k">ここがポイント</p>
       <p>このセリフを言っているのは<strong>${esc(y.name)}</strong>。あなたではありません。</p>
       <p class="defuse-reframe">「${esc(m.thought)}」<br><span>……という考えが、いま浮かんでいる。</span></p>
-      <p class="muted">考えは事実ではなく、頭に浮かんだセリフ。セリフなら、ツッコめます。</p>
+      <p class="muted">落語家が扇子一本でそばをすすって見せるように、妖怪はセリフ一つで、まだ起きていない出来事を見せる名人です。出来事は本物でも、頭の中のセリフには脚色が入っています。セリフなら、ツッコめます。</p>
     </div>
     ${wizNav(3, 'ツッコミへ', false)}`;
   }
@@ -657,8 +709,20 @@
       <div class="range-scale"><span>かすか</span><span>いっぱい</span></div>
       <p class="was">上演前は ${m.emoBefore}</p>
     </div>
+    <fieldset class="field belief-field"><legend>このボケの奥にあったのは？ <span class="opt">選ばなくてもOK</span></legend>
+      <p class="muted small">考えの奥には、昔からの「思いこみのクセ」がひそんでいることがあります。近いものがあれば、ひとつ。</p>
+      <div class="chips" role="group" aria-label="奥にある思い">${NT.BELIEFS.map(b =>
+        `<button class="chip${m.belief === b.id ? ' on' : ''}" aria-pressed="${m.belief === b.id}" data-act="mzBelief" data-id="${b.id}">${esc(b.label)}</button>`).join('')}
+        <button class="chip${m.belief === 'unknown' ? ' on' : ''}" aria-pressed="${m.belief === 'unknown'}" data-act="mzBelief" data-id="unknown">わからない</button></div>
+    </fieldset>
     <div class="wiz-nav"><button class="btn btn-ghost" data-act="mzReplayDraft">もう一度観る</button><button class="btn btn-primary" data-act="mzSave">ネタ帳にしまう</button></div>`;
   }
+  ACT.mzBelief = el => {
+    const m = mz(); const id = el.dataset.id;
+    m.belief = m.belief === id ? null : id;
+    $$('.chip[data-act="mzBelief"]').forEach(c => { const on = c.dataset.id === m.belief; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    saveDraftSoon();
+  };
 
   function baRow(label, before, after, unit) {
     const d = after - before;
@@ -729,6 +793,18 @@
   ACT.kouzaFx = el => {
     const m = mz(); const y = D.yokaiById[m.yokai[0]]; const fx = el.dataset.fx;
     const b = $('#kouzaBubble'); const actor = $('#kouzaActor');
+    if (fx === 'telop') { // ※イメージです
+      const stage = b.closest('.mini-stage');
+      let t = $('.mini-telop', stage);
+      if (!t) { t = document.createElement('span'); t.className = 'mini-telop'; t.setAttribute('role', 'status'); stage.appendChild(t); }
+      let txt = pick(D.TELOPS);
+      for (let k = 0; k < 4 && txt === t.textContent; k++) txt = pick(D.TELOPS);
+      t.textContent = txt;
+      t.classList.remove('in'); void t.offsetWidth; t.classList.add('in');
+      Sfx.pop(); buzz(10);
+      Voice.speak(txt.replace('※', ''), { force: true, pitch: 1, rate: 1.15 });
+      return;
+    }
     m.fx = fx;
     b.dataset.fx = ''; void b.offsetWidth; b.dataset.fx = fx;
     actor.classList.remove('bob'); void actor.offsetWidth; actor.classList.add('bob');
@@ -814,6 +890,8 @@
     const m = mz();
     const sc = scriptFromDraft(m);
     sc.beliefAfter = m.beliefAfter; sc.emoAfter = m.emoAfter; sc.replays = 0;
+    if (m.belief) sc.belief = m.belief;
+    if (m.fromNeta) sc.fromNeta = m.fromNeta;
     S.scripts.unshift(sc);
     const unlocked = [];
     sc.yokai.forEach(id => {
@@ -869,7 +947,8 @@
     tks.forEach((t, i) => {
       const T = D.tsukkomiById[t.id];
       if (!T) return;
-      L.push({ who: 'you', kind: G ? 'soft' : 'tsukkomi', text: K ? T.kansai : T.yasashi, ymood: 'shock' });
+      const say = G ? T.yasashi : pick(K ? [T.kansai].concat(T.kansaiAlt || []) : [T.yasashi].concat(T.yasashiAlt || []));
+      L.push({ who: 'you', kind: G ? 'soft' : 'tsukkomi', text: say, ymood: 'shock' });
       L.push({ who: 'you', text: t.a });
       if (i < tks.length - 1) L.push({ who: 'yokai', text: REACTIONS[i % REACTIONS.length], mood: 'shock' });
     });
@@ -886,6 +965,8 @@
       L.push({ who: 'you', kind: 'tsukkomi', text: 'もう、いいかげんにしなさいっ。', ymood: 'happy' });
       L.push({ who: 'both', text: 'ありがとうございましたー！', mood: 'happy' });
     }
+    // 考えはフィクション。ただし、しんどさは本物。
+    L.push({ who: 'telop', kind: 'telop', text: G ? D.END_TELOP.gentleMain : D.END_TELOP.main, sub: G ? D.END_TELOP.gentleCare : D.END_TELOP.care, mood: 'happy' });
     return L;
   }
 
@@ -915,14 +996,15 @@
       </div>
       <div class="stage-bar">
         <span class="stage-count" id="stCount">開演</span>
-        ${G ? '' : '<button class="btn btn-stage-ghost" data-act="stageSmack">ハリセン</button>'}
+        <button class="btn btn-stage-ghost" id="stAuto" data-act="stageAuto" aria-pressed="${!!S.profile.autoPlay}">オート</button>
+        ${G ? '' : '<button class="btn btn-stage-ghost" data-act="stageSmack" aria-label="ハリセンでたたく">ハリセン</button>'}
         <button class="btn btn-primary" id="stNext" data-act="stageNext">次へ</button>
       </div>
       <div class="curtain cl" aria-hidden="true"></div><div class="curtain cr" aria-hidden="true"></div>
       <div class="oiri" id="stOiri" hidden><span>${G ? 'おつかれさま' : '大入'}</span></div>
     </div>`;
     document.body.classList.add('no-scroll');
-    ST = { sc, lines: buildLines(sc), i: -1, opts, opening: true, ended: false };
+    ST = { sc, lines: buildLines(sc), i: -1, opts, opening: true, ended: false, auto: !!S.profile.autoPlay, autoT: null };
     const stage = $('.stage', root);
     const fast = reduceMotion();
     if (!G) Sfx.hyoshigi();
@@ -950,36 +1032,67 @@
 
   function stageNext() {
     if (!ST || ST.opening) return;
+    clearTimeout(ST.autoT);
     if (ST.ended) { finishStage(); return; }
     ST.i += 1;
     if (ST.i >= ST.lines.length) { endShow(); return; }
     const L = ST.lines[ST.i];
     const yid = L.yid || ST.sc.yokai[0];
     const b = $('#stBubble');
-    const who = L.who === 'you' ? (S.profile.name || 'あなた') : L.who === 'both' ? 'ふたり' : D.yokaiById[yid].name;
     b.className = 'bubble from-' + L.who + (L.kind ? ' k-' + L.kind : '');
-    b.innerHTML = `<span class="who">${esc(who)}</span><span class="line">${nl2br(L.text)}</span>`;
+    if (L.who === 'telop') {
+      b.innerHTML = `<span class="line">${esc(L.text)}</span><span class="telop-care">${esc(L.sub || '')}</span>`;
+    } else {
+      const who = L.who === 'you' ? (S.profile.name || 'あなた') : L.who === 'both' ? 'ふたり' : D.yokaiById[yid].name;
+      b.innerHTML = `<span class="who">${esc(who)}</span><span class="line">${nl2br(L.text)}</span>`;
+    }
     void b.offsetWidth; b.classList.add('in');
     const yEl = $('#stYokai');
-    if (L.who === 'yokai' || L.who === 'both') yEl.innerHTML = A.yokai(yid, L.mood || 'norm');
+    if (L.who === 'yokai' || L.who === 'both' || L.who === 'telop') yEl.innerHTML = A.yokai(yid, L.mood || 'norm');
     else if (L.ymood) yEl.innerHTML = A.yokai(ST.sc.yokai[0], L.ymood);
     $('#stYou').classList.toggle('talking', L.who === 'you' || L.who === 'both');
     yEl.classList.toggle('talking', L.who === 'yokai' || L.who === 'both');
     if (L.kind === 'tsukkomi') smack();
     $('#stCount').textContent = (ST.i + 1) + ' / ' + ST.lines.length;
     $('#stNext').textContent = ST.i === ST.lines.length - 1 ? '終演' : '次へ';
-    speakLine(L, yid);
+    const spoken = speakLine(L, yid);
+    if (ST.auto) scheduleAuto(L, spoken);
+  }
+
+  function scheduleAuto(L, spoken) {
+    if (!ST || !ST.auto || ST.ended) return;
+    const idx = ST.i;
+    const goNext = () => { if (ST && ST.auto && !ST.ended && ST.i === idx) stageNext(); };
+    if (spoken) {
+      spoken.then(() => { if (ST && ST.i === idx) ST.autoT = setTimeout(goNext, 700); });
+    } else {
+      const len = (L.text || '').length + (L.sub || '').length;
+      const ms = clamp(1400 + len * 95, 2000, 8000) + (L.kind === 'tsukkomi' ? 500 : 0) + (L.who === 'telop' ? 2000 : 0);
+      ST.autoT = setTimeout(goNext, ms);
+    }
   }
 
   function speakLine(L, yid) {
-    if (!S.profile.voice || !Voice.can()) return;
+    if (!S.profile.voice || !Voice.can()) return null;
     const isY = L.who === 'yokai';
     const o = isY ? D.yokaiById[yid].voice : L.kind === 'tsukkomi' ? { pitch: 1.15, rate: 1.3 } : { pitch: 1.05, rate: 1.05 };
-    Voice.speak(L.text, o);
+    const text = L.who === 'telop' ? L.text.replace(/^※/, '') + ' ' + (L.sub || '') : L.text;
+    return Voice.speak(text, o);
   }
+
+  ACT.stageAuto = el => {
+    if (!ST) return;
+    ST.auto = !ST.auto;
+    S.profile.autoPlay = ST.auto; save();
+    el.setAttribute('aria-pressed', ST.auto);
+    clearTimeout(ST.autoT);
+    if (ST.auto && !ST.opening && !ST.ended) ST.autoT = setTimeout(() => { if (ST && ST.auto) stageNext(); }, 1200);
+    toast(ST.auto ? 'オートで進みます' : '自分のペースで進みます');
+  };
 
   function endShow() {
     ST.ended = true;
+    clearTimeout(ST.autoT);
     Voice.stop();
     const stage = $('.stage');
     stage.classList.remove('open');
@@ -994,6 +1107,7 @@
   }
 
   function closeStage() {
+    if (ST) clearTimeout(ST.autoT);
     Voice.stop();
     $('#stage-root').innerHTML = '';
     ST = null;
@@ -1052,7 +1166,9 @@
       ${y.kind === 'state'
         ? `<h3>静かになる演目（ながめ席）</h3><ul class="weak">${y.practices.map(pid => { const P = D.NAGAME.practices.find(p => p.id === pid); return `<li><b>${esc(P.name)}</b><span>${esc(P.when)}</span></li>`; }).join('')}</ul>
            <a class="btn btn-ghost" href="#nagame">ながめ席へ</a>`
-        : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>`}
+        : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>
+           <h3>持ちネタ（${NT.LIST.filter(n => n.y === y.id).length}本）</h3>
+           <ul class="pick-list">${NT.LIST.filter(n => n.y === y.id).map(n => `<li><button class="pick-item${seenOf(n.id) ? ' seen' : ''}" data-act="libOpen" data-id="${n.id}"><span>「${esc(n.thought)}」</span><small>${esc(NT.domainById[n.d].label)}${seenOf(n.id) ? '・観た' : ''}</small></button></li>`).join('')}</ul>`}
       <h3>なかよし度</h3><div class="zk-friend">${hearts(r.friend)}<span class="muted">出会った回数 ${r.met}回</span></div>
       <h3>本音</h3>${r.friend >= 3 ? `<blockquote class="honne-q">${esc(y.honne)}</blockquote>` : `<p class="locked">なかよし度が3になると、本音が聞けます（あと${3 - r.friend}）</p>`}
     </div>`, { label: known ? y.name : '未発見の妖怪' });
@@ -1406,6 +1522,49 @@
   };
 
   // ============ ネタ帳 ============
+  function netaTabs(active) {
+    return `<nav class="seg-tabs" aria-label="ネタ帳の切りかえ">
+      <a href="#neta" class="${active === 'mine' ? 'on' : ''}"${active === 'mine' ? ' aria-current="page"' : ''}>自分のネタ</a>
+      <a href="#mochineta" class="${active === 'lib' ? 'on' : ''}"${active === 'lib' ? ' aria-current="page"' : ''}>持ちネタ集 <small>${NT.LIST.length}</small></a>
+    </nav>`;
+  }
+  function weekJournal() {
+    const since = Date.now() - 7 * 864e5;
+    const inWeek = iso => iso && new Date(iso).getTime() >= since;
+    const g = S.nagame || {};
+    const sc = S.scripts.filter(s => inWeek(s.date));
+    const rows = [
+      ['妖怪漫才を上演', sc.length, '回'],
+      ['ながめ席で眺めた', (g.sessions || []).filter(s => inWeek(s.date)).length, '回'],
+      ['「はっ」と気づいた', (g.kizuki || []).filter(inWeek).length, '回'],
+      ['心配を下足番に預けた', (g.geso || []).filter(x => inWeek(x.created)).length, '枚'],
+      ['予言を答え合わせした', S.prophecies.filter(p => inWeek(p.checkedAt)).length, '件'],
+      ['行動おみくじをやってみた', S.omikuji.filter(o => inWeek(o.date)).length, '回'],
+      ['持ちネタを観た', Object.values(S.netaSeen || {}).filter(inWeek).length, '本']
+    ].filter(r => r[1] > 0);
+    const ys = {};
+    sc.forEach(s => s.yokai.forEach(id => { ys[id] = (ys[id] || 0) + 1; }));
+    const topY = Object.entries(ys).sort((a, b) => b[1] - a[1])[0];
+    return `<section class="journal" aria-labelledby="journal-h">
+      <h2 id="journal-h" class="journal-k">楽屋日誌 ― この7日間</h2>
+      ${rows.length ? `<ul class="journal-list">${rows.map(r => `<li><span>${r[0]}</span><b>${r[1]}<small>${r[2]}</small></b></li>`).join('')}</ul>
+        ${topY ? `<p class="journal-note">この7日間によく出た妖怪は「${esc(D.yokaiById[topY[0]].name)}」でした。</p>` : ''}`
+        : '<p class="journal-note">この7日間は、お休みでした。休むのも、大事な演目です。</p>'}
+    </section>`;
+  }
+  function beliefSummary() {
+    const counts = {};
+    S.scripts.forEach(s => { if (s.belief && NT.beliefById[s.belief]) counts[s.belief] = (counts[s.belief] || 0) + 1; });
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (!total) return '';
+    const max = Math.max.apply(null, Object.values(counts));
+    return `<section class="belief-sum" aria-labelledby="belief-h">
+      <p id="belief-h" class="neta-top-k">ボケの奥にあるもの</p>
+      <div class="belief-bars">${NT.BELIEFS.map(b => { const c = counts[b.id] || 0; return `<div class="ba-line"><span class="ba-tag">${esc(b.label)}</span><span class="ba-track"><i class="ba-fill after" style="width:${c / max * 100}%"></i></span><span class="ba-v">${c}</span></div>`; }).join('')}</div>
+      <p class="muted small">いちばん多いものが、あなたの「思いこみのクセ」の入口かもしれません。クセに気づけば、妖怪のボケにも早く気づけます。</p>
+    </section>`;
+  }
+
   VIEWS.neta = function () {
     const list = S.scripts;
     const n = list.length;
@@ -1413,7 +1572,9 @@
     const freq = {};
     list.forEach(s => s.yokai.forEach(id => { freq[id] = (freq[id] || 0) + 1; }));
     const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    return `<header class="page-head"><h1 class="page-title">ネタ帳</h1><p class="page-sub">つらかったことが、あなたのネタになる</p></header>
+    return `${netaTabs('mine')}
+    <header class="page-head"><h1 class="page-title">ネタ帳</h1><p class="page-sub">つらかったことが、あなたのネタになる</p></header>
+    ${weekJournal()}
     ${n ? `<section class="neta-sum" aria-label="ネタ帳のまとめ">
       <dl class="tally">
         <div><dt>上演</dt><dd>${n}<small>回</small></dd></div>
@@ -1421,7 +1582,8 @@
       </dl>
       ${top.length ? `<p class="neta-top-k">よく出る妖怪</p><ul class="neta-top">${top.map(([id, c]) => `<li>${A.yokai(id, 'norm')}<span>${esc(D.yokaiById[id].name)}</span><b>${c}回</b></li>`).join('')}</ul>
       <p class="muted small">同じ妖怪がよく出るのは、あなたの考え方のクセ。気づけたら、それだけでツッコミやすくなります。</p>` : ''}
-    </section>` : '<p class="empty">まだネタがありません。番組の「妖怪漫才」から、最初のネタを作ってみましょう。</p>'}
+    </section>
+    ${beliefSummary()}` : `<p class="empty">まだネタがありません。番組の「妖怪漫才」から、最初のネタを作ってみましょう。見本がほしいときは<a href="#mochineta">持ちネタ集（${NT.LIST.length}本）</a>へ。</p>`}
     <ul class="neta-list">
       ${list.map(s => netaItem(s)).join('')}
       ${netaItem(D.SAMPLE)}
@@ -1466,6 +1628,125 @@
     });
   };
 
+  // ============ 持ちネタ集（96本） ============
+  const YSHORT = { nurikabe: 'ぬりかべ', itsumo: 'イツモ入道', hitotsume: '一つ目小僧', magure: 'マグレ狐', satori: 'サトリ', kudan: 'くだん', namazu: 'ナマズ', kagami: 'キブン鏡', bekibouzu: 'ベキ坊主', karakasa: '唐傘', obariyon: 'おばりよん', noppera: 'のっぺら' };
+  const LF = { d: 'all', y: 'all', b: 'all', limit: 24 };
+  const seenOf = id => !!(S.netaSeen && S.netaSeen[id]);
+  function markSeen(id) { if (!S.netaSeen) S.netaSeen = {}; S.netaSeen[id] = new Date().toISOString(); save(); }
+
+  VIEWS.mochineta = function () {
+    const seenN = NT.LIST.filter(n => seenOf(n.id)).length;
+    const list = NT.LIST.filter(n => (LF.d === 'all' || n.d === LF.d) && (LF.y === 'all' || n.y === LF.y) && (LF.b === 'all' || n.b === LF.b));
+    const ys = DISTORTIONS;
+    return `${netaTabs('lib')}
+    <header class="page-head"><h1 class="page-title">持ちネタ集</h1><p class="page-sub">見本の漫才 ${NT.LIST.length}本。観るだけでも、ツッコミの型が身につきます。</p></header>
+    <section class="lib-progress" aria-label="観たネタ">
+      <p>観たネタ <strong>${seenN}</strong> / ${NT.LIST.length}</p>
+      <div class="meter" role="progressbar" aria-valuenow="${seenN}" aria-valuemin="0" aria-valuemax="${NT.LIST.length}" aria-label="観たネタの数"><i style="width:${seenN / NT.LIST.length * 100}%"></i></div>
+    </section>
+    <details class="neta-table-wrap" open>
+      <summary>ネタ表（妖怪 × 場面）</summary>
+      <div class="table-scroll">
+        <table class="neta-table">
+          <thead><tr><th scope="col"><span class="sr-only">妖怪</span></th>${NT.DOMAINS.map(d => `<th scope="col">${esc(d.short)}</th>`).join('')}</tr></thead>
+          <tbody>${ys.map(y => `<tr><th scope="row">${esc(YSHORT[y.id] || y.name)}</th>${NT.DOMAINS.map(d => {
+            const id = y.id + '-' + d.id;
+            return `<td><button class="cell${seenOf(id) ? ' seen' : ''}" data-act="libOpen" data-id="${id}" aria-label="${esc(y.name)}・${esc(d.label)}${seenOf(id) ? '（観た）' : ''}"></button></td>`;
+          }).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <p class="muted small">縦は認知の歪み（妖怪）、横は生活の場面。塗りつぶしは観たネタです。マスをタップすると開きます。</p>
+    </details>
+    <section class="lib-filter" aria-label="絞りこみ">
+      <div class="chips chips-scroll" role="group" aria-label="場面">${[{ id: 'all', short: 'すべて' }].concat(NT.DOMAINS).map(d =>
+        `<button class="chip chip-sm${LF.d === d.id ? ' on' : ''}" aria-pressed="${LF.d === d.id}" data-act="libD" data-id="${d.id}">${esc(d.short)}</button>`).join('')}</div>
+      <div class="lib-selects">
+        <label class="field"><span>妖怪</span><select id="libY" data-bind="libY"><option value="all">すべて</option>${ys.map(y => `<option value="${y.id}"${LF.y === y.id ? ' selected' : ''}>${esc(y.name)}（${esc(y.distortion)}）</option>`).join('')}</select></label>
+        <label class="field"><span>奥にある思い</span><select id="libB" data-bind="libB"><option value="all">すべて</option>${NT.BELIEFS.map(b => `<option value="${b.id}"${LF.b === b.id ? ' selected' : ''}>${esc(b.label)}</option>`).join('')}</select></label>
+      </div>
+    </section>
+    <p class="lib-count">${list.length}本${list.length > LF.limit ? `のうち ${LF.limit}本を表示` : ''}</p>
+    <ul class="lib-list">${list.slice(0, LF.limit).map(libItem).join('')}</ul>
+    ${list.length > LF.limit ? `<button class="btn btn-ghost lib-more" data-act="libMore">もっと見る（残り ${list.length - LF.limit}本）</button>` : ''}
+    <aside class="howto"><p class="howto-k">分類のしかた</p>
+      <p>縦軸は認知の歪み12種（Burnsの認知の歪みリストに「比較」を加えたもの）。横軸は生活の8つの場面。それぞれのネタに、考えの奥にある思い（ジュディス・ベックの中核信念の3分類：無力・愛されない・価値がない）を、やわらかい言葉でタグづけしています。</p>
+      <p class="muted small" style="margin-top:6px">見本は「型」を覚えるためのもの。自分の漫才では、ツッコミと言い直しを自分の言葉で書いてみてください。</p>
+    </aside>`;
+  };
+  function libItem(n) {
+    const y = D.yokaiById[n.y];
+    const seen = seenOf(n.id);
+    return `<li><button class="lib-item${seen ? ' seen' : ''}" data-act="libOpen" data-id="${n.id}">
+      <span class="lib-art">${A.yokai(n.y, 'norm')}</span>
+      <span class="lib-main"><span class="lib-thought">「${esc(n.thought)}」</span>
+        <span class="lib-tags"><span>${esc(y.name)}</span><span>${esc(NT.domainById[n.d].short)}</span><span>${esc(NT.beliefById[n.b].label)}</span></span></span>
+      ${seen ? '<span class="lib-seen">観た</span>' : ''}
+    </button></li>`;
+  }
+  function libSheet(n) {
+    const y = D.yokaiById[n.y];
+    const dm = NT.domainById[n.d], bl = NT.beliefById[n.b];
+    const i = NT.LIST.indexOf(n);
+    const prev = NT.LIST[(i - 1 + NT.LIST.length) % NT.LIST.length], next = NT.LIST[(i + 1) % NT.LIST.length];
+    return `<div class="daihon lib-sheet">
+      <p class="eyebrow">持ちネタ 其の${i + 1 < 100 ? kanjiNum(i + 1) : i + 1}</p>
+      <div class="lib-head">${A.yokai(n.y, 'smug')}<h2 class="sheet-title">「${esc(n.thought)}」</h2></div>
+      <p class="lib-meta"><span class="tag">${esc(y.name)}（${esc(y.distortion)}）</span><span class="tag">${esc(dm.label)}</span><span class="tag">${esc(bl.label)}（${esc(bl.theory)}）</span></p>
+      <dl class="daihon-lines">
+        <dt>${esc(y.name)}（ボケ）</dt><dd>${esc(y.pre)}「${esc(n.thought)}」${esc(y.post)}</dd>
+        ${n.tk.map(t => { const T = D.tsukkomiById[t.id]; return `<dt class="tk">${esc(tkLine(T))}</dt><dd>${esc(t.a)}</dd>`; }).join('')}
+        <dt class="final">言い直し</dt><dd class="final">${esc(n.re)}</dd>
+      </dl>
+      <p class="telop-note">${esc(D.END_TELOP.main)}<br>${esc(D.END_TELOP.care)}</p>
+      <div class="btn-col">
+        <button class="btn btn-primary" data-act="libPlay" data-id="${n.id}">上演を観る</button>
+        <button class="btn btn-ghost" data-act="libMine" data-id="${n.id}">このボケで、自分の漫才を作る</button>
+      </div>
+      <p class="muted small">「自分の漫才を作る」では、ボケだけが入った状態で始まります。ツッコミと言い直しは、あなたの言葉で。</p>
+      <div class="lib-nav"><button class="link-btn" data-act="libOpen" data-id="${prev.id}">← 前のネタ</button><button class="link-btn" data-act="libOpen" data-id="${next.id}">次のネタ →</button></div>
+    </div>`;
+  }
+  ACT.libOpen = el => {
+    const n = NT.byId[el.dataset.id];
+    if (!n) return;
+    markSeen(n.id);
+    const body = sheetBody();
+    if (body && $('.lib-sheet', body)) { body.innerHTML = libSheet(n); body.closest('.sheet').scrollTop = 0; }
+    else openSheet(libSheet(n), { label: '持ちネタ', onClose: () => setTimeout(() => { if (current === 'mochineta' && !sheets.length && !overlayOpen()) rerender(); }, 0) });
+  };
+  function libScript(n) {
+    return { id: 'lib-' + n.id, sample: true, emotion: 'fuan', emoBefore: 70, emoAfter: 40, situation: '', thought: n.thought,
+      beliefBefore: 80, beliefAfter: 40, yokai: [n.y], tk: n.tk, newThought: n.re, gentle: false };
+  }
+  ACT.libPlay = el => { const n = NT.byId[el.dataset.id]; if (!n) return; markSeen(n.id); startPerformance(libScript(n), {}); };
+  ACT.libMine = el => { const n = NT.byId[el.dataset.id]; if (!n) return; closeAllSheets(); startManzaiWith(n.thought, n.id); };
+  ACT.libD = el => { LF.d = el.dataset.id; LF.limit = 24; rerender(); };
+  ACT.libMore = () => { LF.limit += 24; rerender(); };
+  BIND.libY = el => { LF.y = el.value; LF.limit = 24; rerender(); };
+  BIND.libB = el => { LF.b = el.value; LF.limit = 24; rerender(); };
+
+  // 漫才のボケ入力から、持ちネタ集を探す
+  let PK = 'all';
+  function pickerHtml() {
+    const list = NT.LIST.filter(n => PK === 'all' || n.d === PK);
+    return `<div class="picker">
+      <h2 class="sheet-title">持ちネタ集から探す</h2>
+      <p class="muted small">自分に近いボケを選ぶと、入力欄に入ります。あとから自分の言葉に書きかえてOK。</p>
+      <div class="chips chips-scroll" role="group" aria-label="場面">${[{ id: 'all', short: 'すべて' }].concat(NT.DOMAINS).map(d =>
+        `<button class="chip chip-sm${PK === d.id ? ' on' : ''}" aria-pressed="${PK === d.id}" data-act="pickD" data-id="${d.id}">${esc(d.short)}</button>`).join('')}</div>
+      <ul class="pick-list">${list.map(n => `<li><button class="pick-item" data-act="pickUse" data-id="${n.id}"><span>「${esc(n.thought)}」</span><small>${esc(D.yokaiById[n.y].name)}・${esc(NT.domainById[n.d].short)}</small></button></li>`).join('')}</ul>
+    </div>`;
+  }
+  ACT.pickNeta = () => openSheet(pickerHtml(), { label: '持ちネタ集から探す' });
+  ACT.pickD = el => { PK = el.dataset.id; const b = sheetBody(); if (b) b.innerHTML = pickerHtml(); };
+  ACT.pickUse = el => {
+    const n = NT.byId[el.dataset.id]; if (!n) return;
+    const m = mz(); m.thought = n.thought; m.fromNeta = n.id; saveDraft();
+    closeSheet();
+    const ta = $('#thought'); if (ta) { ta.value = n.thought; setNext(true); }
+    toast('ボケを入れました。自分の言葉に書きかえてもOKです');
+  };
+
   // ============ 楽屋（設定） ============
   VIEWS.gakuya = function () {
     const st = styleOf();
@@ -1486,11 +1767,20 @@
       <h2 id="g-sound-h" class="panel-title">音と声</h2>
       <label class="toggle"><input type="checkbox" id="gSound"${S.profile.sound ? ' checked' : ''} data-bind="sound"><span class="toggle-ui" aria-hidden="true"></span><span>効果音と振動（拍子木・ハリセン・拍手）</span></label>
       <label class="toggle"><input type="checkbox" id="gVoice"${S.profile.voice ? ' checked' : ''}${Voice.can() ? '' : ' disabled'} data-bind="voice"><span class="toggle-ui" aria-hidden="true"></span><span>上演の読み上げ${Voice.can() ? '' : '（この端末では使えません）'}</span></label>
+      <label class="toggle"><input type="checkbox" id="gAuto"${S.profile.autoPlay ? ' checked' : ''} data-bind="autoPlay"><span class="toggle-ui" aria-hidden="true"></span><span>上演をオートで進める（舞台の「オート」でも切りかえられます）</span></label>
+    </section>
+    <section class="panel" aria-labelledby="g-font-h">
+      <h2 id="g-font-h" class="panel-title">文字の大きさ</h2>
+      <div class="seg">
+        <label><input type="radio" name="gFont" value="normal"${S.profile.fontSize !== 'large' ? ' checked' : ''} data-bind="fontSize"><span>ふつう</span></label>
+        <label><input type="radio" name="gFont" value="large"${S.profile.fontSize === 'large' ? ' checked' : ''} data-bind="fontSize"><span style="font-size:1.15em">大きめ</span></label>
+      </div>
     </section>
     <section class="panel" aria-labelledby="g-data-h">
       <h2 id="g-data-h" class="panel-title">記録</h2>
       <p>記録はすべて、この端末のブラウザの中だけに保存されます。どこにも送信されません。</p>
       <div class="btn-col">
+        ${window.KY_PWA ? '<button class="btn btn-ghost" data-act="saveFile">記録をファイルで保存</button>' : ''}
         <button class="btn btn-ghost" data-act="exportData">記録を書き出す（コピー）</button>
         <button class="btn btn-ghost" data-act="importData">記録を読み込む</button>
         <button class="btn btn-ghost danger-text" data-act="wipeData">すべての記録を消す</button>
@@ -1498,10 +1788,12 @@
     </section>
     <section class="panel about" aria-labelledby="g-about-h">
       <h2 id="g-about-h" class="panel-title">ココロ寄席について</h2>
-      <p>ココロ寄席は、認知行動療法（CBT）の技法を「寄席の演目」に仕立てたセルフケアの道具です。10人の専門家（臨床心理士、精神科医、ゲームデザイナー、漫才作家、民俗学者、神経科学者、行動経済学者、即興演劇の演出家、UXデザイナー、当事者のピアサポーター）の視点で設計しました。</p>
+      <p>ココロ寄席は、認知行動療法（CBT）の技法を「寄席の演目」に仕立てたセルフケアの道具です。臨床心理士、精神科医、ゲームデザイナー、漫才作家、民俗学者、神経科学者、行動経済学者、即興演劇の演出家、UXデザイナー、当事者のピアサポーター、マインドフルネス講師、睡眠専門医、プロダクトデザイナー、落語家、ユーモア研究者、スキーマ療法家、放送作家の視点で、3回の設計会議を重ねてつくりました。</p>
+      <p class="fiction-note">出来事とあなたのつらさは本物。でも、頭の中のセリフには、いつも脚色が入っています。※この考えはフィクションです。</p>
       <h3>演目とCBTの対応</h3>
       <dl class="map">
         <div><dt>妖怪漫才</dt><dd>思考記録表（コラム法）、認知再構成法、ソクラテス式質問、脱フュージョン</dd></div>
+        <div><dt>持ちネタ集</dt><dd>認知の歪み12 × 生活の場面8 の見本96本。中核信念（無力・愛されない・価値がない）のタグつき</dd></div>
         <div><dt>ながめ席</dt><dd>マインドフルネス、ACTの脱フュージョン、メタ認知療法（心配の先送り・注意の訓練）、体の感覚への注意</dd></div>
         <div><dt>妖怪図鑑</dt><dd>認知の歪みの心理教育、問題の外在化</dd></div>
         <div><dt>予言くだん</dt><dd>行動実験、予測の検証</dd></div>
@@ -1525,6 +1817,21 @@
   BIND.style = el => { S.profile.style = el.value; save(); toast(el.value === 'kansai' ? 'キレキレ関西にしました' : 'やさしめにしました'); };
   BIND.sound = el => { S.profile.sound = el.checked; save(); if (el.checked) Sfx.pop(); };
   BIND.voice = el => { S.profile.voice = el.checked; save(); if (el.checked) Voice.speak('声で上演します', {}); };
+  BIND.autoPlay = el => { S.profile.autoPlay = el.checked; save(); };
+  BIND.fontSize = el => { S.profile.fontSize = el.value; save(); applyFont(); };
+  function applyFont() { document.documentElement.classList.toggle('fs-large', S.profile.fontSize === 'large'); }
+
+  ACT.saveFile = () => {
+    try {
+      const blob = new Blob([JSON.stringify(Object.assign({}, S, { draft: null }), null, 1)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'kokoro-yose-' + today() + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('保存を始めました。保存されない環境では「コピー」を使ってください');
+    } catch (e) { toast('この環境ではファイルを保存できません。「コピー」を使ってください'); }
+  };
 
   ACT.exportData = () => {
     const json = JSON.stringify(Object.assign({}, S, { draft: null }), null, 1);
@@ -1536,7 +1843,8 @@
   ACT.copyExport = () => copyText($('#exportBox').value, $('#exportBox'));
   ACT.importData = () => {
     openSheet(`<form class="form" data-form="importData"><h2 class="sheet-title">記録を読み込む</h2>
-      <p class="muted small">書き出した文字を貼りつけてください。いまの記録は置き換わります。</p>
+      <p class="muted small">保存したファイルを選ぶか、書き出した文字を貼りつけてください。いまの記録は置き換わります。</p>
+      <label class="file-pick"><span>ファイルを選ぶ</span><input type="file" id="importFile" accept="application/json,.json" data-bind="importFile"></label>
       <label for="importBox" class="sr-only">記録</label><textarea id="importBox" rows="8" placeholder='{"v":1, ...}'></textarea>
       <button class="btn btn-primary btn-block" type="submit">読み込む</button></form>`, { label: '読み込み' });
   };
@@ -1545,13 +1853,21 @@
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
     confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.draft = null; MZ = null;
-      save(); closeAllSheets(); rerender(); toast('読み込みました');
+      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.draft = null; MZ = null;
+      save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
+  };
+  BIND.importFile = el => {
+    const f = el.files && el.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { const box = $('#importBox'); if (box) box.value = String(r.result || ''); toast('ファイルを読みこみました。「読み込む」を押してください'); };
+    r.onerror = () => toast('ファイルを読めませんでした');
+    r.readAsText(f);
   };
   ACT.wipeData = () => {
     confirmSheet('すべての記録（ネタ帳・予言・おみくじ・図鑑・経験）を消します。元には戻せません。', 'すべて消す', () => {
-      const keep = { name: S.profile.name, style: S.profile.style, sound: S.profile.sound, voice: S.profile.voice };
+      const keep = { name: S.profile.name, style: S.profile.style, sound: S.profile.sound, voice: S.profile.voice, autoPlay: S.profile.autoPlay, fontSize: S.profile.fontSize };
       S = fresh(); Object.assign(S.profile, keep, { seenIntro: true, lastVisit: new Date().toISOString() });
       MZ = null; RESULT = null; OM.drawn = null;
       save(); rerender(); toast('すべての記録を消しました');
@@ -1697,13 +2013,7 @@
     state: () => S, save, Sfx, Voice, buzz, toast, openSheet, closeSheet, closeAllSheets, sheetBody, confirmSheet,
     addXP, hearts, rankOf, isRisky, openSos, VIEWS, ACT, BIND, FORM,
     render, rerender, go, current: () => current,
-    startManzaiWith(thought) {
-      RESULT = null;
-      MZ = newDraft();
-      MZ.thought = String(thought || '').slice(0, 300);
-      saveDraft();
-      go('manzai');
-    }
+    startManzaiWith
   };
   (window.KY_EXT || []).forEach(fn => { try { fn(CORE); } catch (e) { console.error(e); } });
 
@@ -1715,6 +2025,7 @@
     S.profile.lastVisit = new Date().toISOString();
     if (!S.profile.name) S.profile.name = 'ココロ亭' + pick(NAMES);
     save();
+    applyFont();
     Voice.init();
     route();
     if (!S.profile.seenIntro) setTimeout(openIntro, 350);
