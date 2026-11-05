@@ -40,7 +40,7 @@
       xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
       nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 },
       fuku: { finds: [], goods: [], days: {}, savors: 0 },
-      game: { quiz: { plays: 0, best: 0, perfect: 0 }, hiroi: { plays: 0, best: 0 } },
+      game: { quiz: { plays: 0, best: 0, perfect: 0, levelBest: {} }, hiroi: { plays: 0, best: 0, bestNeutral: 0 }, sort: { plays: 0, best: 0 }, run: { plays: 0, best: 0, clears: 0, perfect: 0, daily: {} }, eye: {} },
       legends: {}, golden: {}
     };
   }
@@ -178,6 +178,15 @@
       this.burst(c, t, 120, 0.7, 0.6, 1.6, 'lowpass');
       this.tone(c, t, 70, 40, 0.5, 1.4);
       [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => this.tone(c, t + 0.7 + i * 0.11, f, f, 0.16, 1.1));
+    },
+    combo(n) { // 大喜利の連続正解：回を重ねるほど音が上がる（五音音階）
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.01;
+      const scale = [0, 2, 4, 7, 9];
+      const k = Math.max(0, Math.min(14, (n | 0) - 1));
+      const f = 523.25 * Math.pow(2, (scale[k % 5] + 12 * Math.floor(k / 5)) / 12);
+      this.tone(c, t, f, f, 0.14, 0.14, 'triangle');
+      if (n && n % 5 === 0) this.tone(c, t + 0.08, f * 1.5, f * 1.5, 0.1, 0.25);
     },
     plop() { // 灯籠を水に置く音
       const c = this.c(); if (!c) return;
@@ -1198,6 +1207,7 @@
     baku: () => ({ cur: Math.min(3, nagameSessions().filter(s => s.practice === 'set' && s.set === 'nemuri' && s.parts && s.parts.length >= 2 && s.parts.every(p => p.done)).length), max: 3, unit: '回' }),
     amabie: () => { const days = new Set(((S.fuku && S.fuku.goods) || []).map(g => ymd(new Date(g.date)))); return { cur: Math.min(7, days.size), max: 7, unit: '日' }; },
     raiju: () => ({ cur: S.game && S.game.quiz && S.game.quiz.perfect ? 1 : 0, max: 1, unit: '回' }),
+    nue: () => ({ cur: S.game && S.game.run && S.game.run.perfect ? 1 : 0, max: 1, unit: '回' }),
     hakutaku: () => ({ cur: DISTORTIONS.filter(y => S.yokai[y.id] && S.yokai[y.id].met > 0).length, max: DISTORTIONS.length, unit: '体' }),
     kirin: () => ({ cur: LEGENDS.filter(y => y.id !== 'kirin' && S.legends && S.legends[y.id]).length, max: LEGENDS.length - 1, unit: '体' })
   };
@@ -1342,6 +1352,7 @@
         : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>
            <h3>持ちネタ（${NT.LIST.filter(n => n.y === y.id).length}本）</h3>
            <ul class="pick-list">${NT.LIST.filter(n => n.y === y.id).map(n => `<li><button class="pick-item${seenOf(n.id) ? ' seen' : ''}" data-act="libOpen" data-id="${n.id}"><span>「${esc(n.thought)}」</span><small>${esc(NT.domainById[n.d].label)}${seenOf(n.id) ? '・観た' : ''}</small></button></li>`).join('')}</ul>`}
+      ${!y.kind && CORE.eyeStars ? (() => { const n = CORE.eyeStars(y.id); const e = (S.game && S.game.eye && S.game.eye[y.id]) || { ok: 0, ng: 0 }; return `<h3>見分けの星（大喜利）</h3><p class="zk-eye"><span class="eye-stars" aria-label="星${n}つ">${'★'.repeat(n)}${'☆'.repeat(3 - n)}</span><span class="muted">正しく見分けた ${e.ok}回${e.ok + e.ng ? '・正答率 ' + Math.round(e.ok / (e.ok + e.ng) * 100) + '%' : ''}</span></p>`; })() : ''}
       <h3>なかよし度</h3><div class="zk-friend">${hearts(r.friend)}<span class="muted">出会った回数 ${r.met}回${gold ? '' : r.friend >= 3 ? '・5で金色の姿に' : ''}</span></div>
       <h3>本音</h3>${r.friend >= 3 ? `<blockquote class="honne-q">${esc(y.honne)}</blockquote>` : `<p class="locked">なかよし度が3になると、本音が聞けます（あと${3 - r.friend}）</p>`}
     </div>`, { label: known ? y.name : '未発見の妖怪' });

@@ -365,6 +365,25 @@
       ${eyes([[27, 54], [42, 54]], 4.2, m, { lid: '#f4f1ea' })}
       <ellipse cx="34" cy="42" rx="4.5" ry="3.4" fill="${W}" stroke="${INK}" stroke-width="1.8"/><circle cx="34" cy="42" r="1.8" fill="#4a6fa5"/>`;
   };
+  DRAW.nue = function (m) { // 鵺（猿の顔・狸の体・虎の手足・蛇の尾）
+    return `
+      <path d="M6 40 Q20 24 40 34 Q56 18 76 30 Q96 18 112 36 Q100 40 92 36 Q76 44 60 38 Q40 48 24 40 Q14 46 6 40 Z" fill="#3a3f5c" opacity=".55"/>
+      <path d="M92 82 Q112 78 110 96 Q108 110 96 106" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>
+      <path d="M92 82 Q112 78 110 96 Q108 110 96 106" fill="none" stroke="#5f8f4e" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="96" cy="106" r="5" fill="#5f8f4e" stroke="${INK}" stroke-width="2"/>
+      <g fill="#e3893a" stroke="${INK}" stroke-width="2.5">
+        <rect x="34" y="94" width="11" height="20" rx="4"/><rect x="50" y="96" width="11" height="18" rx="4"/>
+        <rect x="70" y="96" width="11" height="18" rx="4"/><rect x="84" y="94" width="11" height="20" rx="4"/>
+      </g>
+      <path d="M36 100 h8 M52 102 h8 M72 102 h8 M86 100 h8 M36 106 h8 M86 106 h8" stroke="${INK}" stroke-width="2"/>
+      <ellipse cx="64" cy="84" rx="34" ry="20" fill="#8a7a66" stroke="${INK}" stroke-width="3"/>
+      <ellipse cx="64" cy="90" rx="18" ry="9" fill="#b8a891"/>
+      <circle cx="36" cy="62" r="20" fill="#7a5a3e" stroke="${INK}" stroke-width="3"/>
+      <circle cx="17" cy="62" r="6" fill="#d9a684" stroke="${INK}" stroke-width="2"/>
+      <ellipse cx="38" cy="66" rx="13" ry="11" fill="#d9a684"/>
+      ${eyes([[32, 62], [44, 62]], 4, m, { lid: '#d9a684' })}
+      ${mouth(38, 72, 5, m)}`;
+  };
   DRAW.kirin = function (m) { // 麒麟
     return `
       <path d="M32 96 L30 114 M44 98 L44 116 M78 98 L78 116 M90 96 L92 114" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round"/>
