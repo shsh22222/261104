@@ -1,8 +1,8 @@
 /* ココロ寄席 ― 福さがし（注意を、よいことに向ける演目）
  * 主役は「夜の福日記」：一日を思い出して、よかったことを3行（樺沢紫苑の3行ポジティブ日記、
- * ポジティブ心理学の「三つのよいこと」を参考に）。各行に「レンズ」（思い出す手がかり）がつく。
- *   1行目：もの・感覚（＝朝のお題）／2行目：人とのこと／3行目：自分のこと
- * 朝のお題は「夜のレンズの予告」。昼に見つけたものは、夜の日記にワンタップで入れられる。
+ * ポジティブ心理学の「三つのよいこと」「感謝」を参考に）。
+ * 第八回：各行の手がかりを、9つの「切り口」（よかったこと・ありがとう・ラッキー・おいしい・ほっとした・
+ *   笑った・できた・やさしさ・明日の楽しみ）から選べるように。朝のお題は「今日の切り口」。
  * 味わう（20秒）、福引き、福帳。案内役は座敷わらし。
  */
 (function () {
@@ -10,8 +10,8 @@
   (window.KY_EXT = window.KY_EXT || []).push(function (K) {
     const { D, A, $, $$, esc, uid, ymd, today, fmtMD, pick, toast, openSheet, closeSheet, sheetBody, addXP, hearts, VIEWS, ACT, FORM, Sfx, buzz } = K;
     const F = D.FUKU;
-    const LENS = { mono: F.odai, hito: F.lensHito, jibun: F.lensJibun };
-    const LINE_KINDS = ['mono', 'hito', 'jibun'];
+    const KIRI = F.kiri;
+    const KIRI_BY = Object.fromEntries(KIRI.map(k => [k.id, k]));
 
     function fk() {
       const S = K.state();
@@ -21,32 +21,46 @@
       return f;
     }
     function dayHash(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-    function lensIndex(kind) {
+    function odaiIndex() {
       const f = fk(); const t = today(); const d = f.days[t] || {};
-      const key = kind === 'mono' ? 'odai' : kind;
-      if (typeof d[key] === 'number') return d[key] % LENS[kind].length;
-      return dayHash(t + kind) % LENS[kind].length;
+      if (typeof d.odai === 'number') return d.odai % KIRI.length;
+      return dayHash(t + 'kiri') % KIRI.length;
     }
-    const lensText = kind => LENS[kind][lensIndex(kind)];
-    const odaiIndex = () => lensIndex('mono');
-    K.fukuOdai = () => lensText('mono');
+    const odaiKiri = () => KIRI[odaiIndex()];
+    K.fukuOdai = () => odaiKiri().label;
+    // 今日の各行の切り口：1行目は朝のお題、のこりはちがう切り口から
+    let LINE_KIRI = null;
+    function lineKiri() {
+      const t = today();
+      if (!LINE_KIRI || LINE_KIRI.date !== t || LINE_KIRI.odai !== odaiIndex()) {
+        const first = odaiKiri().id;
+        LINE_KIRI = { date: t, odai: odaiIndex(), ids: [first].concat(F.diaryDefault.filter(id => id !== first)) };
+      }
+      return LINE_KIRI.ids;
+    }
     const isToday = iso => ymd(new Date(iso)) === today();
     const isNight = () => { const h = new Date().getHours(); return h >= 17 || h < 4; };
     function zashiki() { const S = K.state(); return S.yokai.zashiki || (S.yokai.zashiki = { met: 0, friend: 0 }); }
 
+    const findLabel = x => x.note || (KIRI[(x.odai || 0) % KIRI.length].label + 'を見つけた');
+    function kiriLine(i, kid, todayGoods) {
+      const k = KIRI_BY[kid] || KIRI[0];
+      return `<div class="nikki-line">
+          <div class="kiri-row" role="radiogroup" aria-label="${i + 1}行目の切り口">${KIRI.map(x => `<button type="button" class="kiri${x.id === k.id ? ' on' : ''}" role="radio" aria-checked="${x.id === k.id}" data-act="fukuKiri" data-line="${i}" data-id="${x.id}">${esc(x.label)}</button>`).join('')}</div>
+          <label for="good${i}" class="kiri-q" id="kiriQ${i}">${esc(k.q)}</label>
+          <input type="text" id="good${i}" data-kiri="${k.id}" maxlength="60" placeholder="例：${esc(k.ex[todayGoods.length % k.ex.length])}" autocomplete="off">
+        </div>`;
+    }
     function diaryForm(todayGoods) {
       const remaining = Math.max(1, 3 - todayGoods.length);
-      const kinds = todayGoods.length >= 3 ? ['mono'] : LINE_KINDS.slice(3 - remaining);
+      const ids = lineKiri();
+      const lines = todayGoods.length >= 3 ? [ids[0]] : ids.slice(0, 3).slice(3 - remaining);
       const finds = fk().finds.filter(x => isToday(x.date));
       return `<form class="form nikki-form" data-form="fukuGood">
-        ${kinds.map((k, i) => `<div class="nikki-line">
-          <div class="lens-row"><span class="lens-k">レンズ</span><span class="lens" id="lens-${k}">${esc(lensText(k))}</span>
-            <button type="button" class="link-btn small" data-act="fukuLens" data-k="${k}">レンズを変える</button></div>
-          <label for="good${i}" class="sr-only">よかったこと（${esc(lensText(k))}）</label>
-          <input type="text" id="good${i}" data-kind="${k}" maxlength="60" placeholder="${i === 0 && !todayGoods.length ? '例：' + esc(F.examples[0]) : 'こじつけでもOK'}" autocomplete="off">
-        </div>`).join('')}
+        <p class="kiri-hint">切り口は、行ごとに選べます。書きやすいものでどうぞ。</p>
+        ${lines.map((kid, i) => kiriLine(i, kid, todayGoods)).join('')}
         ${finds.length ? `<div class="examples"><span class="examples-k">昼に見つけた福を入れる</span>${finds.map(x =>
-          `<button type="button" class="chip chip-sm chip-find" data-act="fukuFindUse" data-t="${esc(x.note || lensText('mono') + 'を見つけた')}">${esc(x.note || lensText('mono') + 'を見つけた')}</button>`).join('')}</div>` : ''}
+          `<button type="button" class="chip chip-sm chip-find" data-act="fukuFindUse" data-t="${esc(findLabel(x))}">${esc(findLabel(x))}</button>`).join('')}</div>` : ''}
         <details class="rewind"><summary>思い出せないときは、一日を巻き戻す</summary>
           <div class="chips" role="group" aria-label="時間帯">${Object.keys(F.rewind).map(k =>
             `<button type="button" class="chip chip-sm" data-act="fukuRewind" data-k="${k}">${esc(F.rewind[k].label)}</button>`).join('')}</div>
@@ -78,7 +92,7 @@
 
       const nikki = `<section class="nikki" aria-labelledby="nikki-h">
         <p class="nikki-k" id="nikki-h">${night ? '今夜の福日記' : '今日の福日記'}</p>
-        <p class="nikki-lead">一日を思い出して、よかったことを3行。小さくても、<strong>こじつけでも大歓迎</strong>です。レンズを手がかりに、今日の記憶の中から福をさがします。${night ? '' : '寝る前に書くのがおすすめです。'}</p>
+        <p class="nikki-lead">一日を思い出して、よかったことを3行。小さくても、<strong>こじつけでも大歓迎</strong>です。「ありがとう」「ラッキー」「笑った」……切り口を変えると、思い出せることが変わります。${night ? '' : '寝る前に書くのがおすすめです。'}</p>
         ${todayGoods.length ? `<ul class="good-list">${todayGoods.map(g => `<li>
             <div>${g.lens ? `<small class="good-lens">${esc(g.lens)}</small>` : ''}<p>${esc(g.text)}</p></div>
             <button class="btn btn-small" data-act="fukuSavor" data-id="${g.id}">味わう</button>
@@ -88,9 +102,9 @@
       </section>`;
 
       const odai = `<section class="odai" aria-labelledby="odai-h">
-        <p class="odai-k" id="odai-h">朝のお題 ― 夜のレンズの予告</p>
-        <p class="odai-t">${esc(F.odai[oi])}</p>
-        <p class="odai-note">朝にお題を見ておくと、一日のうちに目に飛びこんできて、夜の1行目が書きやすくなります。見つけたら、ひとことメモを。</p>
+        <p class="odai-k" id="odai-h">朝のお題 ― 今日の切り口</p>
+        <p class="odai-t">${esc(KIRI[oi].label)}<small>をさがす日</small></p>
+        <p class="odai-note">${esc(KIRI[oi].q)}<br>朝に切り口を決めておくと、一日のうちに目に入りやすくなり、夜の1行目が書きやすくなります。見つけたら、ひとことメモを。</p>
         <form class="odai-form" data-form="fukuFind">
           <label for="findNote" class="sr-only">どこで見つけた？</label>
           <input type="text" id="findNote" maxlength="40" placeholder="どこで？（任意）" autocomplete="off">
@@ -131,8 +145,8 @@
       </section>
 
       <aside class="howto"><p class="howto-k">この演目の考え方</p>
-        <p>注意は、自分で向け先を選べます。寝る前に一日をふりかえり、よかったことを書くと、一日が「よかったこともあった日」として整理し直されます。樺沢紫苑が紹介している「3行ポジティブ日記」と、ポジティブ心理学の「三つのよいこと」「味わい（セイバリング）」を参考にしています。</p>
-        <p class="muted small" style="margin-top:6px">思い出せないのは、記憶に手がかりが足りないだけ。レンズと巻き戻しを使ってください。見つからない日があっても大丈夫。福の数に目標や連続記録はありません。</p>
+        <p>注意は、自分で向け先を選べます。寝る前に一日をふりかえり、よかったことを書くと、一日が「よかったこともあった日」として整理し直されます。樺沢紫苑が紹介している「3行ポジティブ日記」と、ポジティブ心理学の「三つのよいこと」「感謝」「味わい（セイバリング）」を参考にしています。</p>
+        <p class="muted small" style="margin-top:6px">思い出せないのは、切り口が合っていないだけ。「ラッキー」「ありがとう」「笑った」など、切り口を変えたり、一日を巻き戻したりしてみてください。見つからない日があっても大丈夫。福の数に目標や連続記録はありません。</p>
       </aside>`;
     };
 
@@ -151,22 +165,21 @@
     };
     ACT.fukuOdaiNext = () => {
       const f = fk(); const t = today();
-      f.days[t] = Object.assign({}, f.days[t], { odai: (odaiIndex() + 1) % F.odai.length });
+      f.days[t] = Object.assign({}, f.days[t], { odai: (odaiIndex() + 1) % KIRI.length });
       K.save(); K.rerender();
     };
 
     // ---- 夜の福日記 ----
-    ACT.fukuLens = el => { // 入力中の文字を消さないよう、再描画せずにレンズだけ変える
-      const k = el.dataset.k;
-      const f = fk(); const t = today();
-      const key = k === 'mono' ? 'odai' : k;
-      f.days[t] = Object.assign({}, f.days[t], { [key]: (lensIndex(k) + 1) % LENS[k].length });
-      K.save();
-      const lab = $('#lens-' + k); if (lab) { lab.textContent = lensText(k); lab.classList.remove('flip'); void lab.offsetWidth; lab.classList.add('flip'); }
+    ACT.fukuKiri = el => { // 入力中の文字を消さないよう、再描画せずに切り口だけ変える
+      const i = +el.dataset.line; const k = KIRI_BY[el.dataset.id]; if (!k) return;
+      const row = el.closest('.kiri-row');
+      $$('.kiri', row).forEach(b => { const on = b === el; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+      const q = $('#kiriQ' + i); if (q) { q.textContent = k.q; q.classList.remove('flip'); void q.offsetWidth; q.classList.add('flip'); }
+      const inp = $('#good' + i); if (inp) { inp.dataset.kiri = k.id; inp.placeholder = '例：' + k.ex[0]; }
       buzz(8);
     };
     function fillEmpty(text) {
-      const inputs = $$('.nikki-form input[data-kind]');
+      const inputs = $$('.nikki-form input[data-kiri]');
       const empty = inputs.find(i => !i.value.trim());
       const target = empty || inputs[0];
       if (target) { target.value = text; target.focus(); }
@@ -180,10 +193,10 @@
     };
     FORM.fukuGood = form => {
       const f = fk();
-      const lines = $$('input[data-kind]', form).map(i => ({ kind: i.dataset.kind, text: i.value.trim() })).filter(x => x.text);
+      const lines = $$('input[data-kiri]', form).map(i => ({ kind: i.dataset.kiri, text: i.value.trim() })).filter(x => x.text);
       if (!lines.length) { const g0 = $('#good0', form); if (g0) g0.focus(); toast('小さなこと、こじつけで大丈夫。ひとつだけ書いてみましょう'); return; }
       const firstToday = !f.goods.some(g => isToday(g.date));
-      lines.forEach(x => f.goods.push({ id: uid(), date: new Date().toISOString(), text: x.text.slice(0, 60), lens: lensText(x.kind), kind: x.kind }));
+      lines.forEach(x => f.goods.push({ id: uid(), date: new Date().toISOString(), text: x.text.slice(0, 60), lens: (KIRI_BY[x.kind] || KIRI[0]).label, kind: x.kind }));
       const z = zashiki();
       const before = z.friend;
       if (firstToday) { z.met += 1; z.friend = Math.min(5, z.friend + 1); }
@@ -259,6 +272,7 @@
         if (left <= 0) {
           clearInterval(savorTimer); savorTimer = null;
           const f = fk(); f.savors += 1;
+          if (K.mark) K.mark('savor');
           const up = addXP(D.XP.savor);
           K.save();
           Sfx.bell(); buzz(20);

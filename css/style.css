@@ -2368,6 +2368,125 @@ html.fs-large { font-size: 112.5%; }
 .rk-zabuton { position: absolute; z-index: 1; bottom: 0; left: 50%; width: 190px; height: 34px; transform: translateX(-50%); border-radius: 14px; background: linear-gradient(180deg, #8e3b6a, #5d2445); border: 2px solid #1d1a14; box-shadow: 0 6px 0 #3a2410; }
 .rakugo .oiri span { font-size: clamp(2rem, 10vw, 3.2rem); line-height: 1.3; }
 
+/* ---------- 第八回：福日記の切り口 ---------- */
+.kiri-hint { font-size: var(--t-xs); color: var(--night-muted); }
+.kiri-row { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px 2px 4px; margin: 0 -2px; scroll-snap-type: x proximity; }
+.kiri-row::-webkit-scrollbar { display: none; }
+.kiri { flex: none; scroll-snap-align: start; border: 1.5px solid var(--night-line); background: rgba(255, 255, 255, .04); color: var(--night-muted); border-radius: 999px; padding: 6px 12px; min-height: 36px; font: inherit; font-size: var(--t-xs); font-weight: 700; cursor: pointer; white-space: nowrap; }
+.kiri.on { background: var(--night-accent); border-color: var(--night-accent); color: var(--night-ink); }
+.kiri-q { font-size: var(--t-sm); font-weight: 700; color: var(--night-fg); }
+.kiri-q.flip { animation: lensflip .35s ease; }
+.odai-t small { font-family: var(--f-body); font-size: var(--t-md); color: var(--muted); margin-left: 4px; }
+
+/* エレベーターの呼吸（のどの床が往復する） */
+.ev-disc { transition: transform 4s ease-in-out; transform-box: view-box; }
+.ev-floor-shape { fill: var(--night-accent); opacity: .85; filter: drop-shadow(0 0 6px rgba(255, 207, 122, .8)); }
+.ev-floor-shine { fill: #fff6dc; opacity: .7; }
+.ev-count { text-align: center; color: var(--night-fg); font-size: var(--t-xs); line-height: 1.3; }
+.ev-count b { font-family: var(--f-display); font-weight: 400; font-size: var(--t-2xl); color: var(--night-accent); }
+.ev-total { text-align: center; font-size: .6875rem; color: var(--night-muted); line-height: 1.35; }
+.ev-total b { color: var(--night-fg); font-size: var(--t-sm); }
+.calm .btn-night-ghost { background: transparent; border-color: var(--night-line); color: var(--night-fg); }
+
+/* 記録のしかた */
+.seg5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.seg5 span { min-height: 44px; padding: 6px 2px; font-size: var(--t-xs); border-radius: 10px; }
+.scale-tap legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
+.measure-sw { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: var(--t-xs); }
+.ms-k { color: var(--muted); font-weight: 700; margin-right: 4px; }
+.measure-sw button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 4px 12px; min-height: 32px; font: inherit; font-size: var(--t-xs); font-weight: 700; cursor: pointer; }
+.measure-sw button.on { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.measure-note { margin-top: -4px; }
+.neta-light { font-size: var(--t-xs); white-space: nowrap; }
+.calm .scale-tap legend, .calm-end .scale-tap legend { color: var(--night-fg); }
+.calm .seg span { background: rgba(255, 255, 255, .05); border-color: var(--night-line); color: var(--night-fg); }
+.calm .seg input:checked + span { background: var(--night-accent); border-color: var(--night-accent); color: var(--night-ink); box-shadow: none; }
+.calm .was { color: var(--night-muted); }
+
+/* 行動おみくじ：出たら、やる */
+.okite { list-style: none; margin: 0; padding: 10px 14px; border: 2px solid var(--kaki); border-radius: 10px; background: var(--paper); color: var(--paper-ink); display: flex; flex-direction: column; gap: 2px; font-weight: 700; font-size: var(--t-sm); }
+.okite::before { content: "おみくじの掟"; font-family: var(--f-display); font-weight: 400; color: var(--kaki); font-size: var(--t-md); margin-bottom: 2px; }
+.okite b { color: var(--kaki); }
+.btn-big { min-height: 64px; font-size: var(--t-lg); flex-direction: column; gap: 0; line-height: 1.2; }
+.btn-big small { font-size: var(--t-xs); font-weight: 500; opacity: .85; }
+.mk-out { align-self: center; color: var(--muted); }
+.mk-drawn, .mk-now, .mk-draw { display: flex; flex-direction: column; gap: 14px; }
+.mk-now-k { text-align: center; font-family: var(--f-display); font-size: var(--t-xl); color: var(--kaki); }
+.mk-elapsed { text-align: center; font-size: var(--t-sm); color: var(--muted); }
+.mk-elapsed b { font-family: var(--f-display); font-weight: 400; font-size: var(--t-2xl); color: var(--fg); font-variant-numeric: tabular-nums; margin-left: 6px; }
+.mk-countdown { min-height: 22rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; background: radial-gradient(120% 90% at 50% 40%, #3a1d10, var(--maku-kuro)); color: var(--stage-fg); border-radius: var(--r); padding: 20px; }
+.mk-cd-act { font-weight: 700; font-size: var(--t-lg); max-width: 22rem; }
+.mk-cd-n { font-family: var(--f-display); font-size: 6rem; line-height: 1; color: var(--stage-glow); font-variant-numeric: tabular-nums; }
+.mk-cd-n.tick { animation: cdtick .6s ease-out; }
+.mk-cd-n.go { font-size: 4rem; color: #ff9a66; animation: pop2 .5s ease; }
+.mk-cd-s { font-size: var(--t-sm); color: var(--stage-muted); }
+@keyframes cdtick { from { transform: scale(1.6); opacity: .3; } to { transform: none; opacity: 1; } }
+.mk-done { position: relative; }
+.mk-stamp { align-self: center; width: 96px; height: 96px; border: 5px double #c8102e; border-radius: 50%; display: grid; place-items: center; color: #c8102e; font-family: var(--f-display); font-size: 1.6rem; transform: rotate(-12deg); animation: stamp .45s cubic-bezier(.3, 1.6, .5, 1) both; background: rgba(200, 16, 46, .06); }
+.mk-cats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mk-cats li { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: var(--t-xs); color: var(--muted); background: var(--surface); }
+.mk-cats li.on { color: var(--fg); border-color: var(--kaki); }
+.mk-cats b { font-family: var(--f-display); font-weight: 400; font-size: var(--t-md); color: var(--kaki); }
+
+/* 大喜利：心の五力 */
+.power-board { display: flex; flex-direction: column; }
+.power-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pw { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.pw-top { display: flex; justify-content: space-between; align-items: baseline; }
+.pw-name { font-family: var(--f-display); font-weight: 400; font-size: var(--t-md); }
+.pw-lv { font-family: var(--f-display); color: var(--kaki); font-size: var(--t-md); }
+.pw-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; display: block; }
+.pw-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--moegi), var(--gold)); }
+.pw-d { font-size: var(--t-xs); color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pw-d small { font-size: inherit; opacity: .8; }
+.gr-gain { width: 100%; background: rgba(111, 207, 151, .1); border: 1px solid rgba(111, 207, 151, .35); border-radius: 12px; padding: 8px 12px; }
+.gr-gain-k { font-size: var(--t-xs); font-weight: 700; letter-spacing: .1em; color: #8ee6b2; }
+.gr-gain ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: var(--t-sm); }
+
+/* 客席の笑顔さがし */
+.game-card-egao { background: linear-gradient(160deg, #3a2a14, #1d140b); color: var(--stage-fg); border-color: #6b4524; }
+.game-card-egao .gc-desc, .game-card-egao .gc-stat { color: var(--stage-muted); }
+.game-card-egao .gc-stat strong { color: var(--stage-glow); }
+.gc-art-egao { display: grid; grid-template-columns: repeat(2, 40px); gap: 4px; place-content: center; }
+.gc-art-egao .eg-svg { width: 40px; height: 40px; }
+.game-egao { background: radial-gradient(120% 80% at 50% 0%, #3a2410 0%, var(--stage-bg) 62%); }
+.egao-wrap { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px 16px; max-width: 30rem; margin: 0 auto; width: 100%; min-height: 0; }
+.egao-guide { text-align: center; font-weight: 700; font-size: var(--t-sm); color: var(--stage-glow); }
+.egao-grid { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 6px; align-content: center; flex: 1; min-height: 0; }
+.egao-grid.in { animation: rise .25s ease both; }
+.eg-face { aspect-ratio: 1; border-radius: 14px; border: 2px solid #4a3826; background: #2a1d10; padding: 4px; cursor: pointer; transition: transform .1s ease, border-color .2s; display: grid; place-items: center; }
+.eg-face:active { transform: scale(.95); }
+.eg-face .eg-svg { width: 100%; height: 100%; display: block; }
+.eg-face.hit { border-color: #6fcf97; background: rgba(111, 207, 151, .25); animation: pop2 .35s ease; }
+.eg-face.miss { border-color: #e2703f; background: rgba(226, 112, 63, .2); }
+.eg-face.reveal { border-color: var(--stage-glow); box-shadow: 0 0 0 3px var(--stage-glow), 0 0 18px rgba(232, 181, 78, .6); }
+.eg-line { fill: none; stroke: #2b2420; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.eg-ink { fill: #2b2420; }
+.eg-cheek { fill: #f08a7a; opacity: .55; }
+.eg-face-c { stroke: #2b2420; stroke-width: 2; }
+.egao-fb { text-align: center; font-weight: 700; font-size: var(--t-sm); min-height: 1.6em; }
+.egao-fb.good { color: #8ee6b2; }
+.egao-fb.bad { color: #ffc3a6; }
+.egao-wrap .q-timer { margin: 0; }
+
+/* 番組：今日の三題噺 */
+.sandai { background: var(--paper); color: var(--paper-ink); border-radius: var(--r); padding: 14px 16px; border: 1.5px solid rgba(180, 71, 28, .35); display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.sandai.done { border-color: var(--gold); background: linear-gradient(180deg, #fff6dc, var(--paper)); }
+.sandai-head { display: flex; justify-content: space-between; align-items: baseline; }
+.sandai-k { font-family: var(--f-display); font-weight: 400; font-size: var(--t-xl); color: #8a3a17; letter-spacing: .06em; }
+.sandai-n { font-size: var(--t-sm); color: var(--paper-muted); }
+.sandai-n b { font-family: var(--f-display); font-weight: 400; font-size: var(--t-xl); color: #b4471c; }
+.sandai-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sandai-item { display: grid; grid-template-columns: 1.8rem 1fr auto; gap: 8px; align-items: center; text-decoration: none; color: inherit; background: rgba(255, 255, 255, .55); border: 1px solid rgba(180, 71, 28, .2); border-radius: 10px; padding: 8px 10px; min-height: 48px; }
+.sd-no { font-family: var(--f-display); color: #b4471c; text-align: center; font-size: var(--t-lg); }
+.sd-t { font-weight: 700; font-size: var(--t-sm); }
+.sd-check { font-family: var(--f-display); color: #c8102e; font-size: var(--t-md); }
+.sandai-list li.done .sandai-item { background: rgba(27, 106, 79, .08); }
+.sandai-list li.done .sd-t { color: var(--paper-muted); text-decoration: line-through; text-decoration-color: rgba(27, 106, 79, .5); }
+.sandai-list li.done .sd-check { border: 2px solid #c8102e; border-radius: 50%; width: 1.9em; height: 1.9em; display: grid; place-items: center; transform: rotate(-12deg); font-size: var(--t-sm); }
+.sandai-note { font-size: var(--t-xs); color: var(--paper-muted); }
+.sandai-story { font-weight: 700; font-size: var(--t-sm); line-height: 1.8; background: rgba(255, 255, 255, .6); border-radius: 10px; padding: 10px 12px; animation: rise .5s ease both; }
+
 /* ---------- 動き ---------- */
 @keyframes pop {
   0% { opacity: 0; transform: rotate(-14deg) scale(.4); }

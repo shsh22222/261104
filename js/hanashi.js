@@ -109,22 +109,23 @@
     }
     function storyItem(s) {
       const L = LENS[s.lens] || { name: '' };
-      const d = s.weightBefore - s.weightAfter;
+      const nums = K.isNum(s.weightBefore) && K.isNum(s.weightAfter);
+      const d = nums ? s.weightBefore - s.weightAfter : 0;
       return `<li class="hn-item">
         <p class="hn-item-t">『${esc(s.title || autoTitle(s))}』</p>
         <p class="hn-item-ochi">${esc(s.ochi)}</p>
-        <p class="hn-item-meta">${esc(fmtMD(s.date))}・${esc(L.name)}・重さ ${s.weightBefore} → ${s.weightAfter}${d > 0 ? `（−${d}）` : ''}</p>
+        <p class="hn-item-meta">${esc(fmtMD(s.date))}・${esc(L.name)}${nums ? `・重さ ${s.weightBefore} → ${s.weightAfter}${d > 0 ? `（−${d}）` : ''}` : ''}</p>
         <div class="btn-row"><button class="btn btn-small btn-ghost" data-act="hnDel" data-id="${s.id}">消す</button><button class="btn btn-small btn-primary" data-act="hnReplay" data-id="${s.id}">高座で一席</button></div>
       </li>`;
     }
     function autoTitle(s) { const t = String(s.event || '').replace(/[。、！？\s]+$/, ''); return t.length > 12 ? t.slice(0, 12) + '…' : t || 'しくじり'; }
     function resultCard(r) {
-      const d = r.before - r.after;
+      const d = K.isNum(r.before) && K.isNum(r.after) ? r.before - r.after : 0;
       return `<section class="hn-result" aria-live="polite">
         <p class="hn-result-k">噺帳にしまいました</p>
         <p class="hn-result-t">『${esc(r.title)}』</p>
-        <p class="hn-result-w">出来事の重さ <strong>${r.before}</strong> → <strong>${r.after}</strong></p>
-        <p>${d > 0 ? '出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。' : '重さが変わらなくても大丈夫。語り手の席に一度座ったことが、次の距離になります。'}</p>
+        ${K.isNum(r.before) && K.isNum(r.after) ? `<p class="hn-result-w">出来事の重さ <strong>${esc(K.scaleLabel('weight', r.before).replace(/[「」]/g, ''))}</strong> → <strong>${esc(K.scaleLabel('weight', r.after).replace(/[「」]/g, ''))}</strong></p>` : ''}
+        <p>${!(K.isNum(r.before) && K.isNum(r.after)) ? '出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。' : d > 0 ? '出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。' : '重さが変わらなくても大丈夫。語り手の席に一度座ったことが、次の距離になります。'}</p>
         ${r.up ? `<p class="xp-gain"><strong>${esc(r.up)}に昇進しました</strong></p>` : ''}
       </section>`;
     }
@@ -152,12 +153,11 @@
         <textarea id="hnEvent" rows="2" maxlength="200" placeholder="例：大事な会議の日に、シャツを裏返しに着ていた" data-bind="hnEvent">${esc(d.event)}</textarea>
         <div class="examples"><span class="examples-k">例から選ぶ</span>${HN.examples.map((t, i) => `<button class="chip chip-sm" data-act="hnEx" data-i="${i}">${esc(t)}</button>`).join('')}</div>
       </div>
-      <div class="field">
-        <label for="hnWb">この出来事、いまの重さは？ <output id="hnWbOut">${d.weightBefore}</output></label>
-        <input type="range" id="hnWb" min="0" max="100" step="5" value="${d.weightBefore}" data-out="hnWbOut" data-bind="hnWb">
-        <div class="range-scale"><span>かるい</span><span>ずっしり</span></div>
-        <p class="hn-heavy-hint" id="hnHeavyHint"${d.weightBefore >= HEAVY ? '' : ' hidden'}>かなり重そうです。笑いには距離が要るので、無理に笑いにしなくて大丈夫です。</p>
-      </div>
+      ${K.measureMode() === 'off'
+        ? `<fieldset class="field scale-tap" id="hnWb"><legend>笑いにできそうな重さ？</legend><div class="seg">${[[30, 'ちいさなこと'], [85, 'ちょっと重いかも']].map(([v, l]) =>
+          `<label><input type="radio" name="hnWb" value="${v}"${(d.weightBefore >= HEAVY) === (v >= HEAVY) ? ' checked' : ''} data-bind="hnWb"><span>${l}</span></label>`).join('')}</div></fieldset>`
+        : K.scaleHtml({ id: 'hnWb', label: 'この出来事、いまの重さは？', type: 'weight', value: d.weightBefore, bind: 'hnWb' })}
+      <p class="hn-heavy-hint" id="hnHeavyHint"${d.weightBefore >= HEAVY ? '' : ' hidden'}>かなり重そうです。笑いには距離が要るので、無理に笑いにしなくて大丈夫です。</p>
       ${nav(false, 'hnNextBtn', '芸人の目へ', d.event.trim().length >= 2)}`;
     }
     function stepLens(d) {
@@ -215,12 +215,7 @@
       <h1 class="wiz-title">一席、お見事でした</h1>
       <p class="wiz-lead">語り手の席から眺めてみて、いまはどうですか。感じたままで大丈夫です。</p>
       <blockquote class="boke-quote hn-ev">「${esc(d.event)}」</blockquote>
-      <div class="field">
-        <label for="hnWa">この出来事、いまの重さは？ <output id="hnWaOut">${d.weightAfter}</output></label>
-        <input type="range" id="hnWa" min="0" max="100" step="5" value="${d.weightAfter}" data-out="hnWaOut" data-bind="hnWa">
-        <div class="range-scale"><span>かるい</span><span>ずっしり</span></div>
-        <p class="was">噺にする前は ${d.weightBefore}</p>
-      </div>
+      ${K.scaleHtml({ id: 'hnWa', label: 'この出来事、いまの重さは？', type: 'weight', value: d.weightAfter, bind: 'hnWa', was: '噺にする前は ' + K.scaleLabel('weight', d.weightBefore) })}
       <div class="wiz-nav"><button class="btn btn-ghost" data-act="hnPerformDraft">もう一度一席</button><button class="btn btn-primary" data-act="hnSave">噺帳にしまう</button></div>`;
     }
 
@@ -278,7 +273,8 @@
     ACT.hnSave = () => {
       const d = dr(); if (!d) return;
       const h = hs();
-      const st = { id: d.id, date: new Date().toISOString(), event: d.event.trim(), weightBefore: d.weightBefore, weightAfter: d.weightAfter, lens: d.lens, lensText: d.lensText.trim(), furi: d.furi.trim(), ochi: d.ochi.trim(), title: d.title.trim() || autoTitle(d) };
+      const off = K.measureMode() === 'off';
+      const st = { id: d.id, date: new Date().toISOString(), event: d.event.trim(), weightBefore: off ? null : d.weightBefore, weightAfter: off ? null : d.weightAfter, lens: d.lens, lensText: d.lensText.trim(), furi: d.furi.trim(), ochi: d.ochi.trim(), title: d.title.trim() || autoTitle(d) };
       h.stories.unshift(st);
       h.draft = null;
       const up = addXP(D.XP.hanashi);

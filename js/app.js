@@ -324,6 +324,59 @@
   }
   let pendingConfirm = null;
 
+  // ============ 第八回：記録のしかた（ワンタップ・細かく・数字なし） ============
+  // 数字は道具。めんどうな日は、ことばで十分（docs/EXPERT_DEBATE_8.md 第3幕）
+  const SCALES = {
+    p100: { min: 0, max: 100, step: 5, ends: ['かすか', 'いっぱい'], lv: [[10, 'かすか'], [30, 'すこし'], [50, 'そこそこ'], [70, 'かなり'], [90, 'いっぱい']] },
+    belief: { min: 0, max: 100, step: 5, unit: '%', ends: ['ぜんぜん', '100%本気'], lv: [[10, 'ぜんぜん'], [30, 'すこし'], [50, '半々'], [70, 'かなり'], [95, '本気']] },
+    zawa: { min: 0, max: 10, step: 1, ends: ['0 しずか', '10 とてもざわざわ'], lv: [[1, 'しずか'], [3, 'すこし'], [5, 'そこそこ'], [7, 'かなり'], [9, 'とても']] },
+    weight: { min: 0, max: 100, step: 5, ends: ['かるい', 'ずっしり'], lv: [[10, 'かるい'], [30, 'ちょっと'], [50, 'ふつう'], [70, 'おもい'], [90, 'ずっしり']] },
+    mood10: { min: 0, max: 10, step: 1, ends: ['0 変わらない', '10 すごく上がる'], lv: [[0, '変わらない'], [3, 'すこし'], [5, 'そこそこ'], [7, 'かなり'], [10, 'すごく']] }
+  };
+  const measureMode = () => (['tap', 'slider', 'off'].includes(S.profile.measure) ? S.profile.measure : 'tap');
+  const isNum = v => typeof v === 'number' && !isNaN(v);
+  function nearestLv(type, v) {
+    if (!isNum(v)) return null;
+    return SCALES[type].lv.reduce((a, x) => (Math.abs(x[0] - v) < Math.abs(a[0] - v) ? x : a), SCALES[type].lv[0]);
+  }
+  function scaleLabel(type, v) {
+    if (!isNum(v)) return '—';
+    if (measureMode() === 'slider') return v + (SCALES[type].unit || '');
+    const x = nearestLv(type, v); return x ? '「' + x[1] + '」' : String(v);
+  }
+  // o: { id, label, type, value, bind, was }
+  function scaleHtml(o) {
+    const T = SCALES[o.type]; const mode = o.mode || measureMode();
+    if (mode === 'off') return '';
+    const bind = o.bind ? ` data-bind="${o.bind}"` : '';
+    const was = o.was ? `<p class="was">${esc(o.was)}</p>` : '';
+    if (mode === 'slider') {
+      const v = isNum(o.value) ? o.value : Math.round((T.min + T.max) / 2);
+      return `<div class="field"><label for="${o.id}">${esc(o.label)} <output id="${o.id}Out">${v}${T.unit || ''}</output></label>
+        <input type="range" id="${o.id}" min="${T.min}" max="${T.max}" step="${T.step}" value="${v}" data-out="${o.id}Out"${T.unit ? ` data-unit="${T.unit}"` : ''}${bind}>
+        <div class="range-scale"><span>${esc(T.ends[0])}</span><span>${esc(T.ends[1])}</span></div>${was}</div>`;
+    }
+    const cur = nearestLv(o.type, o.value);
+    return `<fieldset class="field scale-tap" id="${o.id}"><legend>${esc(o.label)}</legend>
+      <div class="seg seg5">${T.lv.map(([v, l]) => `<label><input type="radio" name="${o.id}" value="${v}"${cur && cur[0] === v ? ' checked' : ''}${bind}><span>${esc(l)}</span></label>`).join('')}</div>${was}</fieldset>`;
+  }
+  function scaleRead(root, id) {
+    root = root || document;
+    const r = root.querySelector('#' + id);
+    if (r && r.type === 'range') return +r.value;
+    const c = root.querySelector(`input[name="${id}"]:checked`);
+    return c ? +c.value : null;
+  }
+  function measureSwitch() {
+    const m = measureMode();
+    return `<div class="measure-sw" role="group" aria-label="数字の記録のしかた"><span class="ms-k">数字の記録</span>${[['tap', 'ワンタップ'], ['slider', '細かく'], ['off', 'なし']].map(([k, l]) =>
+      `<button type="button" class="${m === k ? 'on' : ''}" aria-pressed="${m === k}" data-act="setMeasure" data-v="${k}">${l}</button>`).join('')}</div>`;
+  }
+  function setMeasureAct(el) {
+    S.profile.measure = el.dataset.v; save(); rerender();
+    toast({ tap: 'ことばを選ぶだけのワンタップにしました', slider: '数字で細かく記録します', off: '数字はとばします。気持ちの名前だけ残します' }[el.dataset.v]);
+  }
+
   // ============ 計算 ============
   function rankOf(xp) {
     let r = D.RANKS[0], next = D.RANKS[1] || null;
@@ -360,9 +413,11 @@
   function mikujiStats() {
     const done = S.omikuji.filter(o => o.done);
     const n = done.length;
-    const better = done.filter(o => o.actual > o.predicted).length;
-    const gain = n ? done.reduce((s, o) => s + (o.actual - o.predicted), 0) / n : 0;
-    return { n, better, gain };
+    const numd = done.filter(o => isNum(o.actual) && isNum(o.predicted));
+    const better = done.filter(o => (isNum(o.actual) && isNum(o.predicted) && o.actual > o.predicted) || o.feel === 'good').length;
+    const gain = numd.length ? numd.reduce((s, o) => s + (o.actual - o.predicted), 0) / numd.length : 0;
+    const byCat = {}; done.forEach(o => { byCat[o.cat] = (byCat[o.cat] || 0) + 1; });
+    return { n, better, gain, numN: numd.length, byCat };
   }
   function isRisky(text) {
     const t = String(text || '');
@@ -411,6 +466,7 @@
   const ACT = {};
   const BIND = {};
   const FORM = {};
+  ACT.setMeasure = setMeasureAct;
 
   // ============ 番組（ホーム） ============
   VIEWS.home = function () {
@@ -462,6 +518,8 @@
         </a>
       </div>
     </section>
+
+    ${sandaiCard()}
 
     ${timeCard()}
 
@@ -524,6 +582,56 @@
     `;
   };
 
+  // ============ 第八回：今日の三題噺（毎日かわる三つのお題。連続記録はつけない） ============
+  function mark(key) {
+    const t = today();
+    if (!S.marks || S.marks.date !== t) S.marks = { date: t, k: {} };
+    S.marks.k[key] = (S.marks.k[key] || 0) + 1;
+    save();
+  }
+  const marked = key => !!(S.marks && S.marks.date === today() && S.marks.k[key]);
+  const isTodayISO = iso => !!iso && ymd(new Date(iso)) === today();
+  const SANDAI_DONE = {
+    fuku: () => ((S.fuku || {}).goods || []).some(g => isTodayISO(g.date)),
+    savor: () => marked('savor'),
+    elev: () => marked('elev10'),
+    nagame: () => ((S.nagame || {}).sessions || []).some(x => isTodayISO(x.date)),
+    egao: () => marked('game:egao'),
+    quiz: () => marked('game:quiz'),
+    hiroi: () => marked('game:hiroi'),
+    mikuji: () => S.omikuji.some(o => o.done && isTodayISO(o.date)),
+    okashi: () => ((S.hanashi || {}).okashi || []).some(o => isTodayISO(o.date)),
+    manzai: () => S.scripts.some(x => isTodayISO(x.date)) || marked('neta')
+  };
+  function sandaiToday() {
+    const t = today();
+    let h = 2166136261;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+    const r = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+    const pool = D.SANDAI.slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const out = []; const progs = new Set();
+    pool.forEach(x => { if (out.length < 3 && !progs.has(x.prog)) { out.push(x); progs.add(x.prog); } });
+    return out;
+  }
+  function sandaiCard() {
+    const items = sandaiToday().map(x => Object.assign({ done: !!SANDAI_DONE[x.id]() }, x));
+    const n = items.filter(x => x.done).length;
+    const all = n === 3;
+    if (all && S.sandaiAward !== today()) {
+      S.sandaiAward = today();
+      const up = addXP(5);
+      save();
+      setTimeout(() => { Sfx.applause(); toast('今日の三題噺、できあがり！' + (up ? '　' + up + 'に昇進しました' : '')); }, 500);
+    }
+    return `<section class="sandai${all ? ' done' : ''}" aria-labelledby="sandai-h">
+      <div class="sandai-head"><h2 id="sandai-h" class="sandai-k">今日の三題噺</h2><p class="sandai-n"><b>${n}</b>/3</p></div>
+      <ol class="sandai-list">${items.map((x, i) => `<li class="${x.done ? 'done' : ''}"><a class="sandai-item" href="${x.href}"><span class="sd-no" aria-hidden="true">${'一二三'[i]}</span><span class="sd-t">${esc(x.t)}</span><span class="sd-check">${x.done ? '済' : ''}</span></a></li>`).join('')}</ol>
+      ${all ? `<p class="sandai-story">${items.map(x => esc(x.past)).join('。')}。<br>――今日の一席、お後がよろしいようで。</p>`
+        : '<p class="sandai-note">三つそろうと、今日の一席ができあがります。お題は毎日かわります。連続記録はありません。</p>'}
+    </section>`;
+  }
+
   // 時間帯で変わる入口（朝はお題、夜は福日記とおやすみ席）
   function timeCard() {
     const h = new Date().getHours();
@@ -551,7 +659,7 @@
   }
   ACT.toBed = () => { if (CORE.openOmakase) CORE.openOmakase('nemuri'); else go('nagame'); };
 
-  ACT.playSample = () => startPerformance(D.SAMPLE, {});
+  ACT.playSample = () => { mark('neta'); startPerformance(D.SAMPLE, {}); };
   ACT.openSos = () => openSos();
   ACT.closeSheet = () => closeSheet();
   ACT.confirmYes = () => { const f = pendingConfirm; pendingConfirm = null; closeSheet(); if (f) f(); };
@@ -565,8 +673,8 @@
   let MZ = null;
   let RESULT = null;
   function newDraft() {
-    return { id: uid(), phase: 'edit', step: 0, emotion: null, emoBefore: 60, situation: '', thought: '', beliefBefore: 70,
-      yokai: [], tk: {}, open: null, newThought: '', gentle: false, riskAck: false, beliefAfter: 70, emoAfter: 60, fx: '' };
+    return { id: uid(), phase: 'edit', step: 0, emotion: null, emoBefore: 50, situation: '', thought: '', beliefBefore: 70,
+      yokai: [], tk: {}, open: null, newThought: '', gentle: false, riskAck: false, beliefAfter: 70, emoAfter: 50, fx: '', lighter: null };
   }
   function mz() { if (!MZ) MZ = S.draft || newDraft(); return MZ; }
   function saveDraft() { if (MZ) { S.draft = MZ; save(); } }
@@ -643,7 +751,7 @@
     const emo = D.emotionById[m.emotion];
     const me = S.profile.name || 'あなた';
     const rows = [];
-    rows.push(scRow('', `（開演前。心の天気は「${esc(emo ? emo.label : '—')}」、強さ${m.emoBefore}）`, 'togaki'));
+    rows.push(scRow('', `（開演前。心の天気は「${esc(emo ? emo.label : '—')}」${measureMode() === 'off' ? '' : '、強さ' + esc(scaleLabel('p100', m.emoBefore))}）`, 'togaki'));
     if (i >= 3 && y) rows.push(scRow('', `（${esc(y.name)}、得意げに）`, 'togaki'));
     rows.push(scRow(y ? y.name : '？？？', `「${esc(m.thought)}」`, i === 2 ? (y ? 'filled' : 'now') : 'boke', i === 2 && !y ? '← 役名を入れるところ' : ''));
     if (i >= 4) rows.push(scRow('', '（……という考えが、いま浮かんでいる）', 'togaki'));
@@ -698,11 +806,9 @@
     ${roleCard(0)}
     <div class="chips" role="group" aria-label="気分">${D.EMOTIONS.map(e =>
       `<button class="chip${m.emotion === e.id ? ' on' : ''}" aria-pressed="${m.emotion === e.id}" data-act="mzEmotion" data-id="${e.id}">${e.label}</button>`).join('')}</div>
-    <div class="field">
-      <label for="emoBefore">その気分の強さ <output id="emoBeforeOut">${m.emoBefore}</output></label>
-      <input type="range" id="emoBefore" min="0" max="100" step="5" value="${m.emoBefore}" data-out="emoBeforeOut" data-bind="emoBefore">
-      <div class="range-scale"><span>かすか</span><span>いっぱい</span></div>
-    </div>
+    ${scaleHtml({ id: 'emoBefore', label: 'その気分の強さ', type: 'p100', value: m.emoBefore, bind: 'emoBefore' })}
+    ${measureSwitch()}
+    <p class="muted small measure-note">気持ちに名前をつけるだけでも、少し扱いやすくなります。数字は、めんどうな日は「なし」で大丈夫。</p>
     <a class="detour" href="#nagame"><span class="detour-k">はっきりした出来事や考えがないときは</span><span class="detour-t">ながめ席で、ただ眺める</span></a>
     ${wizNav(0, '次へ', !m.emotion)}`;
   }
@@ -723,11 +829,7 @@
         `<button class="chip chip-sm" data-act="mzExample" data-i="${i}">${esc(t)}</button>`).join('')}
         <button class="chip chip-sm chip-lib" data-act="pickNeta">持ちネタ集（${NT.LIST.length}本）から探す</button></div>
     </div>
-    <div class="field">
-      <label for="beliefBefore">どれくらい本気で信じてる？ <output id="beliefBeforeOut">${m.beliefBefore}%</output></label>
-      <input type="range" id="beliefBefore" min="0" max="100" step="5" value="${m.beliefBefore}" data-out="beliefBeforeOut" data-unit="%" data-bind="beliefBefore">
-      <div class="range-scale"><span>ぜんぜん</span><span>100%本気</span></div>
-    </div>
+    ${scaleHtml({ id: 'beliefBefore', label: 'どれくらい本気で信じてる？', type: 'belief', value: m.beliefBefore, bind: 'beliefBefore' })}
     ${wizNav(1, '鑑定へ', m.thought.trim().length < 2)}`;
   }
 
@@ -965,18 +1067,11 @@
     <h1 class="wiz-title">おつかれさまでした</h1>
     <p class="wiz-lead">上演してみて、いまはどうですか。感じたままで大丈夫です。</p>
     <blockquote class="boke-quote">「${esc(m.thought)}」</blockquote>
-    <div class="field">
-      <label for="beliefAfter">このセリフ、いまはどれくらい信じてる？ <output id="beliefAfterOut">${m.beliefAfter}%</output></label>
-      <input type="range" id="beliefAfter" min="0" max="100" step="5" value="${m.beliefAfter}" data-out="beliefAfterOut" data-unit="%" data-bind="beliefAfter">
-      <div class="range-scale"><span>ぜんぜん</span><span>100%本気</span></div>
-      <p class="was">上演前は ${m.beliefBefore}%</p>
-    </div>
-    <div class="field">
-      <label for="emoAfter">「${esc(emo.label)}」の強さは？ <output id="emoAfterOut">${m.emoAfter}</output></label>
-      <input type="range" id="emoAfter" min="0" max="100" step="5" value="${m.emoAfter}" data-out="emoAfterOut" data-bind="emoAfter">
-      <div class="range-scale"><span>かすか</span><span>いっぱい</span></div>
-      <p class="was">上演前は ${m.emoBefore}</p>
-    </div>
+    ${measureMode() === 'off' ? `<fieldset class="field"><legend>上演してみて、セリフの重さは？ <span class="opt">選ばなくてもOK</span></legend>
+      <div class="chips" role="group" aria-label="セリフの重さ">${[[0, '変わらない'], [1, 'すこし軽い'], [2, 'だいぶ軽い']].map(([v, l]) =>
+        `<button class="chip${m.lighter === v ? ' on' : ''}" aria-pressed="${m.lighter === v}" data-act="mzLighter" data-v="${v}">${l}</button>`).join('')}</div></fieldset>`
+      : `${scaleHtml({ id: 'beliefAfter', label: 'このセリフ、いまはどれくらい信じてる？', type: 'belief', value: m.beliefAfter, bind: 'beliefAfter', was: '上演前は ' + scaleLabel('belief', m.beliefBefore) })}
+    ${scaleHtml({ id: 'emoAfter', label: '「' + emo.label + '」の強さは？', type: 'p100', value: m.emoAfter, bind: 'emoAfter', was: '上演前は ' + scaleLabel('p100', m.emoBefore) })}`}
     <fieldset class="field belief-field"><legend>このボケの奥にあったのは？ <span class="opt">選ばなくてもOK</span></legend>
       <p class="muted small">考えの奥には、昔からの「思いこみのクセ」がひそんでいることがあります。近いものがあれば、ひとつ。</p>
       <div class="chips" role="group" aria-label="奥にある思い">${NT.BELIEFS.map(b =>
@@ -985,6 +1080,12 @@
     </fieldset>
     <div class="wiz-nav"><button class="btn btn-ghost" data-act="mzReplayDraft">もう一度観る</button><button class="btn btn-primary" data-act="mzSave">ネタ帳にしまう</button></div>`;
   }
+  ACT.mzLighter = el => {
+    const m = mz(); const v = +el.dataset.v;
+    m.lighter = m.lighter === v ? null : v;
+    $$('.chip[data-act="mzLighter"]').forEach(c => { const on = +c.dataset.v === m.lighter; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    saveDraftSoon();
+  };
   ACT.mzBelief = el => {
     const m = mz(); const id = el.dataset.id;
     m.belief = m.belief === id ? null : id;
@@ -1010,7 +1111,8 @@
     if (!sc) { RESULT = null; return VIEWS.home(); }
     const y = D.yokaiById[sc.yokai[0]];
     const rec = S.yokai[y.id] || { friend: 0 };
-    const drop = sc.beliefBefore - sc.beliefAfter;
+    const measured = isNum(sc.beliefBefore) && isNum(sc.beliefAfter);
+    const drop = measured ? sc.beliefBefore - sc.beliefAfter : 0;
     const emo = D.emotionById[sc.emotion] || { label: '気分' };
     return `<div class="done">
       <div class="done-hero">
@@ -1018,13 +1120,14 @@
         <p class="done-k">${esc(y.name)}と、なかよくなりました</p>
         ${hearts(rec.friend)}
       </div>
-      <section class="ba" aria-label="上演の前と後">
+      ${measured ? `<section class="ba" aria-label="上演の前と後">
         ${baRow('セリフの信じ度', sc.beliefBefore, sc.beliefAfter, '%')}
-        ${baRow('「' + emo.label + '」の強さ', sc.emoBefore, sc.emoAfter, '')}
-      </section>
-      <p class="done-msg">${drop > 0
-        ? `セリフの重みが <strong>${drop}ポイント</strong> 軽くなりました。`
-        : '数字が変わらなくても大丈夫。ツッコミを入れてみたこと自体が、次の練習になります。'}</p>
+        ${isNum(sc.emoBefore) && isNum(sc.emoAfter) ? baRow('「' + emo.label + '」の強さ', sc.emoBefore, sc.emoAfter, '') : ''}
+      </section>` : ''}
+      <p class="done-msg">${measured
+        ? (drop > 0 ? `セリフの重みが <strong>${drop}ポイント</strong> 軽くなりました。` : '数字が変わらなくても大丈夫。ツッコミを入れてみたこと自体が、次の練習になります。')
+        : sc.lighter === 2 ? 'セリフが、<strong>だいぶ軽く</strong>なりました。' : sc.lighter === 1 ? 'セリフが、<strong>すこし軽く</strong>なりました。'
+          : 'ツッコミを入れてみたこと自体が、次の練習になります。'}</p>
       <p class="xp-gain">経験 +${r.xp}${r.rankUp ? `　<strong>${esc(r.rankUp)}に昇進しました</strong>` : ''}</p>
       ${r.unlocked.map(id => { const u = D.yokaiById[id]; return `<div class="honne"><p class="honne-k">${esc(u.name)}の本音が聞けるようになりました</p><blockquote>${esc(u.honne)}</blockquote></div>`; }).join('')}
       ${!sc.gentle && CORE.openHanashi ? `<a class="hanashi-link" href="#hanashi" data-act="toHanashi" data-id="${sc.id}"><span class="hl-k">トリ・笑い噺</span><span class="hl-t">このできごとを、10年後の笑い話にしてみる？</span><span class="hl-s">重い出来事なら、笑いにしなくて大丈夫です</span></a>` : ''}
@@ -1197,8 +1300,8 @@
 
   function scriptFromDraft(m) {
     return {
-      id: m.id, date: new Date().toISOString(), emotion: m.emotion, emoBefore: m.emoBefore,
-      situation: m.situation.trim(), thought: m.thought.trim(), beliefBefore: m.beliefBefore,
+      id: m.id, date: new Date().toISOString(), emotion: m.emotion, emoBefore: measureMode() === 'off' ? null : m.emoBefore,
+      situation: m.situation.trim(), thought: m.thought.trim(), beliefBefore: measureMode() === 'off' ? null : m.beliefBefore,
       yokai: m.yokai.slice(),
       tk: Object.entries(m.tk).filter(([, v]) => v && v.trim()).map(([id, a]) => ({ id, a: a.trim() })),
       newThought: m.newThought.trim(), gentle: !!m.gentle, fx: m.fx || ''
@@ -1208,7 +1311,9 @@
   ACT.mzSave = () => {
     const m = mz();
     const sc = scriptFromDraft(m);
-    sc.beliefAfter = m.beliefAfter; sc.emoAfter = m.emoAfter; sc.replays = 0;
+    const off = measureMode() === 'off';
+    sc.beliefAfter = off ? null : m.beliefAfter; sc.emoAfter = off ? null : m.emoAfter; sc.replays = 0;
+    if (isNum(m.lighter)) sc.lighter = m.lighter;
     if (m.belief) sc.belief = m.belief;
     if (m.fromNeta) sc.fromNeta = m.fromNeta;
     S.scripts.unshift(sc);
@@ -1458,7 +1563,7 @@
   const nagameSessions = () => ((S.nagame && S.nagame.sessions) || []);
   const nagameParts = () => nagameSessions().reduce((a, s) => a.concat(s.parts && s.parts.length ? s.parts : [s]), []);
   const LEG_COND = {
-    daitengu: () => ({ cur: S.scripts.some(sc => (sc.tk || []).length >= 3 && sc.beliefBefore - sc.beliefAfter >= 30) ? 1 : 0, max: 1, unit: '回' }),
+    daitengu: () => ({ cur: S.scripts.some(sc => (sc.tk || []).length >= 3 && ((isNum(sc.beliefBefore) && isNum(sc.beliefAfter) && sc.beliefBefore - sc.beliefAfter >= 30) || sc.lighter === 2)) ? 1 : 0, max: 1, unit: '回' }),
     yatagarasu: () => ({ cur: Math.min(3, nagameParts().filter(p => p.practice === 'ohayashi' && (p.done || (p.steps || 0) >= 6)).length), max: 3, unit: '回' }),
     baku: () => ({ cur: Math.min(3, nagameSessions().filter(s => s.practice === 'set' && s.set === 'nemuri' && s.parts && s.parts.length >= 2 && s.parts.every(p => p.done)).length), max: 3, unit: '回' }),
     amabie: () => { const days = new Set(((S.fuku && S.fuku.goods) || []).map(g => ymd(new Date(g.date)))); return { cur: Math.min(7, days.size), max: 7, unit: '日' }; },
@@ -1617,7 +1722,7 @@
   ACT.closeAndRender = () => { closeSheet(); rerender(); };
 
   // ============ 行動おみくじ（行動活性化） ============
-  const OM = { energy: 2, drawn: null, busy: false, prevText: null };
+  const OM = { energy: 2, drawn: null, busy: false, prevText: null, counting: false, tick: null, half: false };
   const ENERGY = [
     { v: 1, label: 'ほぼゼロ' }, { v: 2, label: 'ふつう' }, { v: 3, label: 'わりと元気' }
   ];
@@ -1641,7 +1746,7 @@
     return {
       no: 1 + Math.floor(Math.random() * 99), fortune: f, action,
       lines: { negai: pick(D.OMIKUJI_LINES.negai), machibito: pick(D.OMIKUJI_LINES.machibito), usemono: pick(D.OMIKUJI_LINES.usemono) },
-      predicted: 4
+      predicted: 5
     };
   }
   function mkPaper(d, small) {
@@ -1659,49 +1764,71 @@
   }
   const canShake = () => typeof window.DeviceMotionEvent !== 'undefined' && !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 
+  const okiteHtml = () => `<ol class="okite" aria-label="おみくじの掟">${D.OKITE.map((t, i) => `<li><b>${'一二三'[i]}、</b>${esc(t)}</li>`).join('')}</ol>`;
+  const halfText = t => '「' + t + '」の、最初の10秒だけ';
+  function mkElapsed() {
+    clearInterval(OM.tick);
+    OM.tick = setInterval(() => {
+      const e = document.getElementById('mkElapsed');
+      if (!e || !S.mikujiNow) { clearInterval(OM.tick); return; }
+      const sec = Math.max(0, Math.floor((Date.now() - new Date(S.mikujiNow.startedAt || S.mikujiNow.drawnAt).getTime()) / 1000));
+      e.textContent = sec >= 3600 ? 'いってらっしゃい' : String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    }, 1000);
+  }
+
   VIEWS.omikuji = function () {
     const ms = mikujiStats();
     const now = S.mikujiNow;
     let main;
     if (now) {
+      const kyo = now.fortune.id === 'kyo';
       main = `<section class="mk-now" aria-label="挑戦中のおみくじ">
-        <p class="eyebrow">挑戦中</p>
+        <p class="mk-now-k">${kyo ? 'お告げどおり、休憩中' : 'いってらっしゃい'}</p>
         ${mkPaper(now, true)}
-        <p class="mk-pred">やる前の予想：気分の上がり具合 <strong>${now.predicted}</strong>/10</p>
-        <div class="btn-col"><button class="btn btn-primary" data-act="mkDone">やってきた！</button>
-        <button class="btn btn-ghost" data-act="mkGiveup">今日はやめておく</button></div>
+        <p class="mk-elapsed">開始から <b id="mkElapsed">00:00</b></p>
+        <div class="btn-col"><button class="btn btn-primary btn-big" data-act="mkDone">${kyo ? '休んだ！' : 'やった！'}</button>
+        ${kyo || now.half ? '' : '<button class="btn btn-ghost" data-act="mkDone" data-half="1">半分だけやった（それも一本）</button>'}</div>
+        <button class="link-btn small mk-out" data-act="mkGiveup">どうしても無理な日は、ここで降りる</button>
       </section>`;
+      setTimeout(mkElapsed, 0);
     } else if (OM.drawn) {
       const d = OM.drawn;
-      main = `<section class="mk-drawn" aria-label="引いたおみくじ">
+      const kyo = d.fortune.id === 'kyo';
+      main = `<section class="mk-drawn" id="mkMain" aria-label="引いたおみくじ">
         ${mkPaper(d, false)}
-        <div class="field"><label for="mkPred">やる前の予想：これをやったら、気分はどれくらい上がりそう？ <output id="mkPredOut">${d.predicted}</output></label>
-          <input type="range" id="mkPred" min="0" max="10" step="1" value="${d.predicted}" data-out="mkPredOut" data-bind="mkPred">
-          <div class="range-scale"><span>0 変わらない</span><span>10 すごく上がる</span></div></div>
-        <div class="btn-col"><button class="btn btn-primary" data-act="mkAccept">${d.fortune.id === 'kyo' ? '休む' : 'やってみる'}</button>
-        <button class="btn btn-ghost" data-act="mkRedraw">別のを引く</button></div>
-        <p class="muted small">何度引き直しても大丈夫。しっくりくるものを選んでください。</p>
+        ${kyo ? '' : scaleHtml({ id: 'mkPred', label: 'やる前の予想：やったら、気分はどれくらい上がりそう？', type: 'mood10', value: d.predicted, bind: 'mkPred' })}
+        <div class="btn-col">
+          <button class="btn btn-primary btn-big" data-act="mkGo">${kyo ? 'いざ、休む' : 'いざ！'}<small>5秒後に始める</small></button>
+          ${kyo || d.half ? '' : '<button class="btn btn-ghost" data-act="mkHalf">半分にする（最初の10秒だけ）</button>'}
+        </div>
+        ${okiteHtml()}
+        <button class="link-btn small mk-out" data-act="mkDrop">どうしても無理な日は、今日は降りる</button>
       </section>`;
     } else {
       main = `<section class="mk-draw" aria-label="おみくじを引く">
+        ${okiteHtml()}
         <fieldset class="field"><legend>いまの元気の残りは？</legend>
           <div class="seg energy">${ENERGY.map(e => `<label><input type="radio" name="mkEnergy" value="${e.v}"${OM.energy === e.v ? ' checked' : ''} data-bind="mkEnergy"><span><i class="bat" data-v="${e.v}" aria-hidden="true"></i>${e.label}</span></label>`).join('')}</div>
         </fieldset>
         <button class="mikuji-box" id="mkBox" data-act="mkDraw" aria-label="おみくじを引く">${A.omikujiBox()}</button>
         <div class="btn-col"><button class="btn btn-primary" data-act="mkDraw">おみくじを引く</button>
         ${canShake() ? '<button class="btn btn-ghost" data-act="mkShake">スマホを振って引く</button>' : ''}</div>
+        <p class="muted small">引き直しはありません。出たものは、お告げです。元気の残りに合わせて、できることだけが出ます。</p>
       </section>`;
     }
-    return `<header class="page-head"><h1 class="page-title">行動おみくじ</h1><p class="page-sub">元気が出るのを待たずに、小さな一手を</p></header>
+    const cats = Object.keys(D.CATEGORIES).map(k => [k, ms.byCat[k] || 0]);
+    return `<header class="page-head"><h1 class="page-title">行動おみくじ</h1><p class="page-sub">出たら、やる。行動から、気分を変える</p></header>
     ${main}
     <section class="mk-stats" aria-label="これまでのおみくじ">
-      <h2 class="sec-title"><span>予想と実際</span></h2>
+      <h2 class="sec-title"><span>やってみた記録</span></h2>
       ${ms.n ? `<dl class="tally">
-        <div><dt>やってみた</dt><dd>${ms.n}<small>回</small></dd></div>
+        <div><dt>やった</dt><dd>${ms.n}<small>回</small></dd></div>
         <div><dt>思ったより良かった</dt><dd>${ms.better}<small>回</small></dd></div>
-        <div><dt>予想との差（平均）</dt><dd>${ms.gain >= 0 ? '+' : '−'}${Math.abs(ms.gain).toFixed(1)}</dd></div>
-      </dl><p class="muted small">気分が落ちているとき、人は「やったら楽しいか」を低く見積もりがちです。予想と実際の差が、その証拠になります。</p>`
-      : '<p class="empty">まだ記録がありません。やる前に予想して、やった後に実際を記録すると、ここに差が出ます。</p>'}
+        ${ms.numN ? `<div><dt>予想との差（平均）</dt><dd>${ms.gain >= 0 ? '+' : '−'}${Math.abs(ms.gain).toFixed(1)}</dd></div>` : ''}
+      </dl>
+      <ul class="mk-cats">${cats.map(([k, c]) => `<li class="${c ? 'on' : ''}"><span>${esc(D.CATEGORIES[k].label)}</span><b>${c}</b></li>`).join('')}</ul>
+      <p class="muted small">気分が落ちているとき、人は「やったら楽しいか」を低く見積もりがちです。予想と実際の差が、その証拠になります。</p>`
+      : '<p class="empty">まだ記録がありません。引いて、やって、ここに戻ってきてください。</p>'}
     </section>
     <details class="my-actions"><summary>マイみくじ（自分で足した行動 ${S.myActions.length}）</summary>
       <form class="form inline-form" data-form="myAction">
@@ -1731,7 +1858,14 @@
     if (current === 'omikuji') rerender();
     if (OM.drawn.fortune.id === 'daikichi') Sfx.chime();
   };
-  ACT.mkRedraw = () => { OM.prevText = OM.drawn ? OM.drawn.action.t : null; OM.drawn = null; rerender(); setTimeout(() => ACT.mkDraw(), 60); };
+  ACT.mkHalf = () => {
+    const d = OM.drawn; if (!d || d.half) return;
+    d.half = true; d.fullText = d.action.t;
+    d.action = Object.assign({}, d.action, { t: halfText(d.action.t) });
+    Sfx.pop(); rerender();
+    toast('半分にしました。最初の10秒だけで、一本です');
+  };
+  ACT.mkDrop = () => { OM.drawn = null; rerender(); toast('今日は降りました。休むのも、ひとつの選択です'); };
   ACT.mkShake = async () => {
     try {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -1761,44 +1895,74 @@
       if (!got) toast('振っても反応しないときは、タップで引いてください');
     }, 8000);
   };
-  ACT.mkAccept = () => {
-    const d = OM.drawn; if (!d) return;
-    S.mikujiNow = Object.assign({ id: uid(), drawnAt: new Date().toISOString() }, d);
-    OM.drawn = null; save(); rerender();
-    toast(d.fortune.id === 'kyo' ? 'いってらっしゃい。ゆっくり休んでください。' : 'いってらっしゃい。終わったら記録しに来てください。');
+  // いざ！：5秒のカウントダウンで、考える前に体を動かす
+  ACT.mkGo = () => {
+    const d = OM.drawn; if (!d || OM.counting) return;
+    OM.counting = true;
+    if (measureMode() === 'off') d.predicted = null;
+    else if (!isNum(d.predicted)) d.predicted = 5;
+    const sec = $('#mkMain');
+    if (sec) sec.innerHTML = `<div class="mk-countdown" aria-live="assertive"><p class="mk-cd-act">${esc(d.action.t)}</p><p class="mk-cd-n" id="mkCd">5</p><p class="mk-cd-s">考える前に、体から</p></div>`;
+    const fast = reduceMotion();
+    let n = 5;
+    const step = () => {
+      n -= 1;
+      const e = document.getElementById('mkCd');
+      if (n > 0) { if (e) { e.textContent = n; e.classList.remove('tick'); void e.offsetWidth; e.classList.add('tick'); } Sfx.blip(440 + (5 - n) * 80); buzz(15); setTimeout(step, fast ? 120 : 800); return; }
+      if (e) { e.textContent = 'いざ！'; e.classList.add('go'); }
+      Sfx.hyoshigi(); buzz([40, 30, 80]);
+      setTimeout(() => {
+        OM.counting = false;
+        S.mikujiNow = Object.assign({ id: uid(), drawnAt: new Date().toISOString(), startedAt: new Date().toISOString() }, d);
+        OM.drawn = null; save();
+        if (current === 'omikuji') rerender();
+      }, fast ? 100 : 900);
+    };
+    Sfx.blip(440); buzz(15);
+    setTimeout(step, fast ? 120 : 800);
   };
+  ACT.mkAccept = ACT.mkGo;
   ACT.mkGiveup = () => {
     S.mikujiNow = null; save(); rerender();
-    toast('やめるのも、ひとつの選択です。また引きに来てください。');
+    toast('今日は降りました。休むのも、ひとつの選択です。また引きに来てください');
   };
-  ACT.mkDone = () => {
+  ACT.mkDone = el => {
     const n = S.mikujiNow; if (!n) return;
+    OM.half = !!(el && el.dataset.half);
+    const kyo = n.fortune.id === 'kyo';
+    const numeric = isNum(n.predicted) && measureMode() !== 'off' && !kyo;
     openSheet(`<form class="form" data-form="mkDone">
       <h2 class="sheet-title">おかえりなさい</h2>
-      <p>「${esc(n.action.t)}」をやってきました。</p>
-      <div class="field"><label for="mkAct">実際、気分はどれくらい上がった？ <output id="mkActOut">${n.predicted}</output></label>
-        <input type="range" id="mkAct" min="0" max="10" step="1" value="${n.predicted}" data-out="mkActOut">
-        <div class="range-scale"><span>0 変わらない</span><span>10 すごく上がった</span></div>
-        <p class="was">やる前の予想は ${n.predicted}</p></div>
+      <p>「${esc(n.action.t)}」${OM.half ? 'を、半分やってきました。それも一本です。' : kyo ? '。お告げどおり、休みました。' : 'をやってきました。'}</p>
+      ${numeric ? scaleHtml({ id: 'mkAct', label: '実際、気分はどれくらい上がった？', type: 'mood10', value: n.predicted, was: 'やる前の予想は ' + scaleLabel('mood10', n.predicted) })
+        : `<fieldset class="field"><legend>やってみて、どうだった？ <span class="opt">選ばなくてもOK</span></legend><div class="seg">${[['good', '思ったより良かった'], ['same', 'ふつう'], ['meh', 'いまいち']].map(([v, l]) =>
+          `<label><input type="radio" name="mkFeel" value="${v}"><span>${l}</span></label>`).join('')}</div></fieldset>`}
       <button class="btn btn-primary btn-block" type="submit">記録する</button>
     </form>`, { label: 'おみくじの記録' });
   };
   FORM.mkDone = f => {
     const n = S.mikujiNow; if (!n) return;
-    const actual = +$('#mkAct', f).value;
-    S.omikuji.unshift({ id: n.id, date: new Date().toISOString(), text: n.action.t, cat: n.action.c, fortune: n.fortune.id, predicted: n.predicted, actual, done: true });
+    const actual = scaleRead(f, 'mkAct');
+    const fe = f.querySelector('input[name="mkFeel"]:checked');
+    const feel = fe ? fe.value : null;
+    S.omikuji.unshift({ id: n.id, date: new Date().toISOString(), text: n.fullText || n.action.t, cat: n.action.c, fortune: n.fortune.id, predicted: isNum(actual) ? n.predicted : null, actual, feel, half: !!(OM.half || n.half), done: true });
     S.mikujiNow = null;
     const up = addXP(D.XP.omikujiDone);
     save();
-    const d = actual - n.predicted;
-    sheetBody().innerHTML = `<div class="yg-result">
-      <p class="mk-result-num">${n.predicted}<span>→</span>${actual}</p>
-      <p class="yg-result-say">${d > 0 ? '思ったより +' + d + '！' : d === 0 ? '予想どおり。' : '予想ほどではなかった日。'}</p>
-      <p>${d > 0 ? '動いてみたら、予想より気分が上がりました。気分は、行動のあとからついてくることがあります。' : d === 0 ? '予想どおりに動けたこと自体が、ひとつの達成です。' : '予想ほどではなくても、動いたこと自体が一歩です。今日はそれで十分。'}</p>
+    if (CORE.mark) CORE.mark('mikuji');
+    const d = isNum(actual) && isNum(n.predicted) ? actual - n.predicted : null;
+    const cat = D.CATEGORIES[n.action.c] || D.CATEGORIES.kai;
+    sheetBody().innerHTML = `<div class="yg-result mk-done">
+      <div class="mk-stamp" aria-hidden="true"><span>達成</span></div>
+      ${d !== null ? `<p class="mk-result-num">${n.predicted}<span>→</span>${actual}</p>` : ''}
+      <p class="yg-result-say">${n.fortune.id === 'kyo' ? 'よく休みました。' : n.action.c === 'yuuki' ? 'ブロック、ひとつ外れた！' : n.action.c === 'shinsetsu' ? 'だれかの一日が、少しやさしくなった。' : 'やった！ 自分をほめてください。'}</p>
+      <p>${d !== null ? (d > 0 ? '思ったより +' + d + '。気分は、行動のあとからついてくることがあります。' : d === 0 ? '予想どおり。動けたこと自体が、ひとつの達成です。' : '予想ほどではなくても、動いたこと自体が一歩です。今日はそれで十分。')
+        : feel === 'good' ? '思ったより良かった。それが、次の一歩の燃料になります。' : '動いたこと自体が一歩です。今日はそれで十分。'}</p>
+      <p class="muted small">「${esc(cat.label)}」の行動を、ひとつ。</p>
       <p class="xp-gain">経験 +${D.XP.omikujiDone}${up ? `　<strong>${esc(up)}に昇進しました</strong>` : ''}</p>
       <button class="btn btn-primary btn-block" data-act="closeAndRender">閉じる</button>
     </div>`;
-    if (d > 0) Sfx.chime();
+    Sfx.chime(); buzz([30, 40, 60]);
   };
   FORM.myAction = f => {
     const t = $('#myActText', f).value.trim();
@@ -1861,7 +2025,8 @@
   VIEWS.neta = function () {
     const list = S.scripts;
     const n = list.length;
-    const avg = n ? Math.round(list.reduce((s, x) => s + (x.beliefBefore - x.beliefAfter), 0) / n) : 0;
+    const numd = list.filter(x => isNum(x.beliefBefore) && isNum(x.beliefAfter));
+    const avg = numd.length ? Math.round(numd.reduce((s, x) => s + (x.beliefBefore - x.beliefAfter), 0) / numd.length) : 0;
     const freq = {};
     list.forEach(s => s.yokai.forEach(id => { freq[id] = (freq[id] || 0) + 1; }));
     const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -1871,7 +2036,7 @@
     ${n ? `<section class="neta-sum" aria-label="ネタ帳のまとめ">
       <dl class="tally">
         <div><dt>上演</dt><dd>${n}<small>回</small></dd></div>
-        <div><dt>信じ度の変化（平均）</dt><dd>${avg > 0 ? '−' : avg < 0 ? '+' : '±'}${Math.abs(avg)}<small>pt</small></dd></div>
+        ${numd.length ? `<div><dt>信じ度の変化（平均）</dt><dd>${avg > 0 ? '−' : avg < 0 ? '+' : '±'}${Math.abs(avg)}<small>pt</small></dd></div>` : ''}
       </dl>
       ${top.length ? `<p class="neta-top-k">よく出る妖怪</p><ul class="neta-top">${top.map(([id, c]) => `<li>${A.yokai(id, 'norm')}<span>${esc(D.yokaiById[id].name)}</span><b>${c}回</b></li>`).join('')}</ul>
       <p class="muted small">同じ妖怪がよく出るのは、あなたの考え方のクセ。気づけたら、それだけでツッコミやすくなります。</p>` : ''}
@@ -1888,7 +2053,7 @@
       <span class="neta-art">${A.yokai(y.id, 'norm')}</span>
       <span class="neta-main"><span class="neta-date">${s.sample ? '見本' : fmtMD(s.date)}・${esc(y.name)}</span>
       <span class="neta-thought">「${esc(s.thought)}」</span></span>
-      <span class="neta-ba">${s.beliefBefore}<i>→</i>${s.beliefAfter}<small>%</small></span>
+      ${isNum(s.beliefBefore) && isNum(s.beliefAfter) ? `<span class="neta-ba">${s.beliefBefore}<i>→</i>${s.beliefAfter}<small>%</small></span>` : s.lighter ? `<span class="neta-ba neta-light">${s.lighter === 2 ? 'だいぶ軽く' : 'すこし軽く'}</span>` : ''}
     </button></li>`;
   }
   ACT.netaOpen = el => {
@@ -1905,10 +2070,10 @@
         ${s.tk.map(t => { const T = D.tsukkomiById[t.id]; return T ? `<dt class="tk">${esc(tkLine(T, s.gentle))}</dt><dd>${nl2br(t.a)}</dd>` : ''; }).join('')}
         <dt class="final">言い直し</dt><dd class="final">${nl2br(s.newThought)}</dd>
       </dl>
-      <section class="ba" aria-label="上演の前と後">
+      ${isNum(s.beliefBefore) && isNum(s.beliefAfter) ? `<section class="ba" aria-label="上演の前と後">
         ${baRow('セリフの信じ度', s.beliefBefore, s.beliefAfter, '%')}
-        ${baRow('「' + emo.label + '」の強さ', s.emoBefore, s.emoAfter, '')}
-      </section>
+        ${isNum(s.emoBefore) && isNum(s.emoAfter) ? baRow('「' + emo.label + '」の強さ', s.emoBefore, s.emoAfter, '') : ''}
+      </section>` : ''}
       ${s.replays ? `<p class="muted small">再演 ${s.replays}回</p>` : ''}
       <div class="btn-row">${s.sample ? '' : `<button class="btn btn-ghost danger-text" data-act="netaDelete" data-id="${s.id}">消す</button>`}
       <button class="btn btn-primary" data-act="${s.sample ? 'playSample' : 'replay'}" data-id="${s.id}">もう一度上演</button></div>
@@ -2011,7 +2176,7 @@
     return { id: 'lib-' + n.id, sample: true, emotion: 'fuan', emoBefore: 70, emoAfter: 40, situation: '', thought: n.thought,
       beliefBefore: 80, beliefAfter: 40, yokai: [n.y], tk: n.tk, newThought: n.re, gentle: false };
   }
-  ACT.libPlay = el => { const n = NT.byId[el.dataset.id]; if (!n) return; markSeen(n.id); startPerformance(libScript(n), {}); };
+  ACT.libPlay = el => { const n = NT.byId[el.dataset.id]; if (!n) return; markSeen(n.id); mark('neta'); startPerformance(libScript(n), {}); };
   ACT.libMine = el => { const n = NT.byId[el.dataset.id]; if (!n) return; closeAllSheets(); startManzaiWith(n.thought, n.id); };
   ACT.libD = el => { LF.d = el.dataset.id; LF.limit = 24; rerender(); };
   ACT.libMore = () => { LF.limit += 24; rerender(); };
@@ -2061,6 +2226,11 @@
       <label class="toggle"><input type="checkbox" id="gSound"${S.profile.sound ? ' checked' : ''} data-bind="sound"><span class="toggle-ui" aria-hidden="true"></span><span>効果音と振動（拍子木・ハリセン・拍手）</span></label>
       <label class="toggle"><input type="checkbox" id="gVoice"${S.profile.voice ? ' checked' : ''}${Voice.can() ? '' : ' disabled'} data-bind="voice"><span class="toggle-ui" aria-hidden="true"></span><span>上演の読み上げ${Voice.can() ? '' : '（この端末では使えません）'}</span></label>
       <label class="toggle"><input type="checkbox" id="gAuto"${S.profile.autoPlay ? ' checked' : ''} data-bind="autoPlay"><span class="toggle-ui" aria-hidden="true"></span><span>上演をオートで進める（舞台の「オート」でも切りかえられます）</span></label>
+    </section>
+    <section class="panel" aria-labelledby="g-measure-h">
+      <h2 id="g-measure-h" class="panel-title">数字の記録のしかた</h2>
+      ${measureSwitch()}
+      <p class="muted small">気分の強さや信じ度、ざわざわ度、重さ、おみくじの予想と実際の記録のしかたです。「ワンタップ」はことばを選ぶだけ、「細かく」はスライダー、「なし」は数字をとばします。前後の変化が見えると効き目を実感しやすくなりますが、練習そのものの効き目は、数字がなくても変わりません。</p>
     </section>
     <section class="panel" aria-labelledby="g-font-h">
       <h2 id="g-font-h" class="panel-title">文字の大きさ</h2>
@@ -2305,8 +2475,9 @@
     D, A, $, $$, esc, nl2br, uid, clamp, ymd, today, addDays, fmtMD, sleep, reduceMotion, pick, kanjiNum,
     state: () => S, save, Sfx, Voice, buzz, toast, openSheet, closeSheet, closeAllSheets, sheetBody, confirmSheet,
     addXP, hearts, rankOf, isRisky, openSos, VIEWS, ACT, BIND, FORM,
+    scaleHtml, scaleRead, scaleLabel, measureMode, isNum,
     render, rerender, go, current: () => current,
-    startManzaiWith
+    startManzaiWith, mark, marked
   };
   (window.KY_EXT || []).forEach(fn => { try { fn(CORE); } catch (e) { console.error(e); } });
 

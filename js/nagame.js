@@ -45,7 +45,7 @@
       if (id === 'ohayashi') return A.instrument('taiko');
       if (id === 'innerbody') return A.seated({ mini: true, glow: true });
       if (id === 'imakoko') return '<span class="ik-mini" aria-hidden="true">いま<br>ここ</span>';
-      if (id === 'elevator') return '<span class="ev-mini" aria-hidden="true"><b>▼</b>B1</span>';
+      if (id === 'elevator') return '<span class="ev-mini" aria-hidden="true"><b>のど</b>⇅</span>';
       return '<span class="fuda fuda-mini" aria-hidden="true"><span class="fuda-no">札</span></span>';
     }
     function allParts() { return ng().sessions.reduce((a, s) => a.concat(s.parts && s.parts.length ? s.parts : [s]), []); }
@@ -201,11 +201,7 @@
         <div class="seg seg-wrap">${N.states.map(s => `<label><input type="radio" name="ngSt" value="${s.id}"${UI.state === s.id ? ' checked' : ''}><span>${esc(s.label)}</span></label>`).join('')}</div>
       </fieldset>`;
     }
-    function beforeField() {
-      return `<div class="field"><label for="ngBefore">いまのざわざわ度 <output id="ngBeforeOut">5</output></label>
-        <input type="range" id="ngBefore" min="0" max="10" step="1" value="5" data-out="ngBeforeOut">
-        <div class="range-scale"><span>0 しずか</span><span>10 とてもざわざわ</span></div></div>`;
-    }
+    function beforeField() { return K.scaleHtml({ id: 'ngBefore', label: 'いまのざわざわ度', type: 'zawa', value: 5 }); }
     function voiceField(on) {
       return Voice.can() ? `<label class="toggle"><input type="checkbox" id="ngVoice"${on ? ' checked' : ''}><span class="toggle-ui" aria-hidden="true"></span><span>音声ガイドで、目を閉じたまま進める</span></label>` : '';
     }
@@ -267,7 +263,7 @@
     FORM.ngStart = f => {
       const id = f.dataset.id;
       const stEl = f.querySelector('input[name="ngSt"]:checked');
-      const sess = { id: uid(), date: new Date().toISOString(), practice: id, state: stEl ? stEl.value : null, before: +$('#ngBefore', f).value };
+      const sess = { id: uid(), date: new Date().toISOString(), practice: id, state: stEl ? stEl.value : null, before: K.scaleRead(f, 'ngBefore') };
       if (stEl) UI.state = stEl.value;
       const opts = {};
       if (id === 'toro') opts.sec = +((f.querySelector('input[name="ngLen"]:checked') || {}).value || 180);
@@ -278,7 +274,7 @@
     };
     FORM.ngStartSet = f => {
       const st = STATE_BY[f.dataset.id]; if (!st) return;
-      const sess = { id: uid(), date: new Date().toISOString(), practice: 'set', set: st.id, state: st.id, before: +$('#ngBefore', f).value, parts: [] };
+      const sess = { id: uid(), date: new Date().toISOString(), practice: 'set', set: st.id, state: st.id, before: K.scaleRead(f, 'ngBefore'), parts: [] };
       const v = $('#ngVoice', f); const o = $('#ngOutside', f);
       const opts = { set: true, setName: st.omakaseName, total: st.omakase.length, queue: st.omakase.slice(1), voice: !!(v && v.checked), mode: o && o.checked ? 'outside' : 'body', sec: 60, rounds: 3 };
       closeSheet();
@@ -790,73 +786,109 @@
       Sfx.bell(); buzz(15);
     };
 
-    // ---- エレベーター呼吸 ----
+    // ---- エレベーターの呼吸（ネドじゅん） ----
+    // のどの「まるい床」を、吸う息でおなかの底へ下ろし、吐く息でのどへ上げる。この往復をくり返す。
+    // 向きは逆（吸って上がる・吐いて下りる）も選べる。質より量なので、通算の往復数を数える。
+    function evDiscAt(down, sec) {
+      const E = N.elevator; const d = $('#evDisc'); if (!d) return;
+      d.style.transitionDuration = (sec || 0) + 's';
+      d.style.transform = down ? `translate(100px, ${E.bellyY}px) scale(2.6, 2.2)` : `translate(100px, ${E.throatY}px) scale(1, 1)`;
+      const fl = $('#evFloor'); if (fl) fl.textContent = down ? 'おなかの底' : 'のど';
+      const ar = $('#evArrow'); if (ar) ar.textContent = down ? '▼' : '▲';
+    }
+    function evDirLabel() { return RUN.evDir === 'out' ? '吸って上がる・吐いて下りる' : '吸って下りる・吐いて上がる'; }
     function runElevator() {
-      const E = N.elevator;
-      const total = 1 + (E.floors.length - 1) + E.stay; // 5階で1呼吸 → 一階ずつ下りる → ハラ階でとどまる
-      Object.assign(RUN, { i: -1, evTotal: total });
-      Object.assign(RUN.part, { floor: '5F', reached: false, steps: 0 });
+      const E = N.elevator; const g = ng();
+      Object.assign(RUN, { i: -1, evDir: g.evDir === 'out' ? 'out' : 'in', evTarget: E.rounds });
+      Object.assign(RUN.part, { rounds: 0, steps: 0, dir: RUN.evDir });
       const panel = `<div class="ev-row">
         <div class="ev-panel" aria-hidden="true">
-          <div class="ev-display"><span class="ev-arrow" id="evArrow">▼</span><span class="ev-floor" id="evFloor">5F</span><span class="ev-name" id="evName">頭</span></div>
-          <ol class="ev-floors">${E.floors.map(f => `<li data-f="${f.f}"><b>${f.f}</b><span>${esc(f.name)}</span></li>`).join('')}</ol>
+          <div class="ev-display"><span class="ev-arrow" id="evArrow">●</span><span class="ev-floor" id="evFloor">のど</span></div>
+          <p class="ev-count"><b id="evCount">0</b><small> / <span id="evOf">${E.rounds}</span><br>往復</small></p>
+          <p class="ev-total">通算<br><b id="evTotal">${g.evTotal || 0}</b> 往復</p>
         </div>
         <div class="hara-fig ev-fig" id="gFig">${A.seated()}</div>
       </div>`;
-      guidedShell('', '吐く息にのせて、一階ずつ下ります。', panel);
-      $('#gNext').hidden = true;
-      const fig = $('#gFig');
-      fig.style.setProperty('--fog', '0');
-      const svg = $('svg', fig);
-      if (svg) svg.insertAdjacentHTML('beforeend', `<g class="ev-dot" id="evDot" style="transform: translate(0px, ${E.floors[0].y}px)"><circle cx="100" cy="0" r="16" class="ev-halo"/><circle cx="100" cy="0" r="8" class="ev-core"/></g>`);
-      setFloor(0, false);
-      evBreath(0);
+      guidedShell('', 'のどの床を、息にあわせて上げ下げします。', panel);
+      const svg = $('svg', $('#gFig'));
+      if (svg) svg.insertAdjacentHTML('beforeend', `<g class="ev-disc" id="evDisc"><ellipse cx="0" cy="0" rx="11" ry="3.6" class="ev-floor-shape"/><ellipse cx="0" cy="-1" rx="7" ry="1.6" class="ev-floor-shine"/></g>`);
+      evDiscAt(RUN.evDir === 'out', 0);
+      $('#gStep').textContent = '準備';
+      $('#gTitle').textContent = 'のどに、まるい床';
+      $('#gText').textContent = E.intro;
+      $('#gSub').textContent = '向き：' + evDirLabel();
+      $('#gNext').textContent = 'はじめる';
+      $('#cBar').insertAdjacentHTML('beforeend', '<button class="link-btn night" data-act="evDir" id="evDirBtn">向きを入れかえる</button>');
+      RUN.stepFn = () => { RUN.stepFn = null; const b = $('#gNext'); if (b) b.hidden = true; const d = $('#evDirBtn'); if (d) d.remove(); evRound(0); };
+      speakGuide('のどのあたりに、まるい床をイメージします。');
+      setProg(E.introSec);
+      later(() => { if (alive('elevator') && RUN.stepFn) RUN.stepFn(); }, E.introSec * 1000);
     }
-    function setFloor(idx, chime) {
-      const E = N.elevator; const f = E.floors[idx];
-      $$('.ev-floors li').forEach(li => li.classList.toggle('on', li.dataset.f === f.f));
-      const fl = $('#evFloor'), nm = $('#evName');
-      if (fl) fl.textContent = f.f; if (nm) nm.textContent = f.name;
-      const dot = $('#evDot'); if (dot) dot.style.transform = `translate(0px, ${f.y}px)`;
-      RUN.part.floor = f.f;
-      if (idx === E.floors.length - 1) { RUN.part.reached = true; const a = $('#evArrow'); if (a) a.textContent = '●'; $('#gFig').classList.add('at-hara'); }
-      if (chime) { Sfx.elev(); buzz(12); }
-    }
-    function evBreath(n) {
+    ACT.evDir = () => {
+      if (!alive('elevator')) return;
+      RUN.evDir = RUN.evDir === 'out' ? 'in' : 'out';
+      ng().evDir = RUN.evDir; RUN.part.dir = RUN.evDir; K.save();
+      evDiscAt(RUN.evDir === 'out', 0.4);
+      $('#gSub').textContent = '向き：' + evDirLabel();
+      buzz(8);
+    };
+    function evRound(n) {
       if (!alive('elevator')) return;
       const E = N.elevator;
-      if (n >= RUN.evTotal) { Sfx.bell(); finishPart(); return; }
-      RUN.i = n; RUN.part.steps = n;
-      const last = E.floors.length - 1;
-      const target = Math.min(n, last); // n呼吸目の吐く息で、n階ぶん下りている
-      const descending = n >= 1 && n <= last;
-      const staying = n > last;
-      $('#gStep').textContent = (n + 1) + ' / ' + RUN.evTotal + ' 呼吸';
-      $('#gTitle').textContent = staying ? 'ハラ階にとどまる' : n === 0 ? '5階・頭から' : '下りていく';
-      $('#gText').textContent = staying ? 'おへその下で、息が出入りするのを感じます。頭のおしゃべりは、上の階に置いてきました。'
-        : n === 0 ? 'いまは頭の階。考えごとでいっぱいのフロアです。まずはひと呼吸。'
-          : '吐く息にのせて、意識のエレベーターを一階下へ。';
-      $('#gSub').textContent = '吸って……';
+      if (n >= RUN.evTarget) { evRest(); return; }
+      RUN.i = n;
+      const downOnIn = RUN.evDir !== 'out';
+      $('#gStep').textContent = (n + 1) + ' 往復目';
+      $('#gTitle').textContent = n < 2 ? 'エレベーターの呼吸' : 'くり返す';
+      $('#gText').textContent = E.tips[Math.floor(n / 3) % E.tips.length];
+      $('#gSub').textContent = downOnIn ? '吸いながら……おなかの底へ' : '吸いながら……のどへ';
+      speakGuide(downOnIn ? '吸って、下へ' : '吸って、上へ', { rate: 0.75 });
       setProg(E.inhale + E.exhale);
-      speakGuide('吸って', { rate: 0.8 });
+      evDiscAt(downOnIn, E.inhale);
       later(() => {
         if (!alive('elevator')) return;
-        const f = E.floors[target];
-        $('#gSub').textContent = descending ? '吐きながら…… ' + f.f + '、' + f.name + 'へ' : '吐いて……';
-        speakGuide(descending ? '吐きながら、' + f.name + 'へ' : '吐いて', { rate: 0.8 });
-        if (descending) {
-          const dot = $('#evDot');
-          if (dot) { dot.style.transitionDuration = E.exhale + 's'; dot.style.transform = `translate(0px, ${f.y}px)`; }
-          const fl = $('#evFloor'); if (fl) fl.textContent = '▼';
-          later(() => {
-            if (!alive('elevator')) return;
-            setFloor(target, true);
-            const s = $('#gSub'); if (s) s.textContent = 'ポーン。' + f.f + '、' + f.name + 'です。';
-          }, E.exhale * 1000 - 300);
-        }
+        $('#gSub').textContent = downOnIn ? '吐きながら……のどへ' : '吐きながら……おなかの底へ';
+        speakGuide(downOnIn ? '吐いて、上へ' : '吐いて、下へ', { rate: 0.75 });
+        evDiscAt(!downOnIn, E.exhale);
       }, E.inhale * 1000);
-      later(() => evBreath(n + 1), (E.inhale + E.exhale) * 1000);
+      later(() => {
+        if (!alive('elevator')) return;
+        const g = ng();
+        RUN.part.rounds += 1; RUN.part.steps = RUN.part.rounds;
+        g.evTotal = (g.evTotal || 0) + 1;
+        if (RUN.part.rounds === 10 && K.mark) K.mark('elev10');
+        const c = $('#evCount'); if (c) c.textContent = RUN.part.rounds;
+        const t = $('#evTotal'); if (t) t.textContent = g.evTotal;
+        if (RUN.part.rounds % 5 === 0) Sfx.elev();
+        evRound(n + 1);
+      }, (E.inhale + E.exhale) * 1000);
     }
+    function evRest() { // 区切り：もう10往復か、おわるか（質より量）
+      if (!alive('elevator')) return;
+      const E = N.elevator;
+      K.save(); Sfx.bell();
+      $('#gStep').textContent = RUN.part.rounds + ' 往復';
+      $('#gTitle').textContent = 'ひと区切り';
+      $('#gText').textContent = 'エレベーターの呼吸は、質より量。くり返すほど、なじんでいきます。続けるなら、もう' + E.more + '往復。';
+      $('#gSub').textContent = '';
+      const b = $('#gNext');
+      if (b) {
+        b.hidden = false;
+        b.insertAdjacentHTML('beforebegin', `<button class="btn btn-night-ghost btn-block" data-act="evMore">もう${E.more}往復</button>`);
+        b.textContent = RUN.opts.set && RUN.opts.queue.length ? 'つぎの演目へ' : 'おわる';
+      }
+      RUN.stepFn = () => { RUN.stepFn = null; finishPart(); };
+    }
+    ACT.evMore = () => {
+      if (!alive('elevator')) return;
+      const E = N.elevator;
+      RUN.evTarget = RUN.part.rounds + E.more;
+      const of = $('#evOf'); if (of) of.textContent = RUN.evTarget;
+      const m = $('[data-act="evMore"]'); if (m) m.remove();
+      const b = $('#gNext'); if (b) b.hidden = true;
+      RUN.stepFn = null;
+      evRound(RUN.part.rounds);
+    };
 
     // ---- 終わり（ざわざわ度の後） ----
     function partSummary(p) {
@@ -898,8 +930,8 @@
           return `<p class="end-big">${p.breaths || 0}<small> 呼吸</small></p>
             ${p.backs ? `<p class="calm-note">考えにそれて、<strong>${p.backs}回</strong>もどってきました。それたことではなく、戻れたことが一本です。</p>` : '<p class="calm-note">「いま」と「ここ」。それていたら、いつでも戻ってこられます。</p>'}`;
         case 'elevator':
-          return `<p class="end-big">${p.reached ? 'B1' : (p.floor || '5F')}<small>${p.reached ? ' ハラ階に着きました' : ' まで下りました'}</small></p>
-            <p class="calm-note">頭のおしゃべりは、上の階に置いてきました。また頭に戻っていたら、エレベーターで下りてくればいい。</p>`;
+          return `<p class="end-big">${p.rounds || 0}<small> 往復</small></p>
+            <p class="calm-note">通算 <strong>${ng().evTotal || 0}</strong> 往復。のどからおなかへ、おなかからのどへ。頭のおしゃべりに気づいたら、またエレベーターを動かせばいい。</p>`;
         default: return '';
       }
     }
@@ -917,10 +949,7 @@
       $('#cScene').innerHTML = `<div class="calm-end">
         <p class="calm-end-k">おつかれさまでした</p>
         ${summary}
-        <div class="field"><label for="ngAfter">いまのざわざわ度 <output id="ngAfterOut">${s.before}</output></label>
-          <input type="range" id="ngAfter" min="0" max="10" step="1" value="${s.before}" data-out="ngAfterOut">
-          <div class="range-scale"><span>0 しずか</span><span>10 とてもざわざわ</span></div>
-          <p class="was">はじめる前は ${s.before}</p></div>
+        ${K.isNum(s.before) ? K.scaleHtml({ id: 'ngAfter', label: 'いまのざわざわ度', type: 'zawa', value: s.before, was: 'はじめる前は ' + K.scaleLabel('zawa', s.before) }) : ''}
       </div>`;
       $('#cBar').innerHTML = '<button class="btn btn-night-primary btn-block" data-act="ngSave">記録して閉じる</button><button class="link-btn night" data-act="ngDiscard">記録せずに閉じる</button>';
       const tm = $('#cTimer'); if (tm) tm.textContent = '';
@@ -931,7 +960,7 @@
     ACT.ngSave = () => {
       if (!RUN) return;
       const s = RUN.sess;
-      s.after = +$('#ngAfter').value;
+      s.after = K.isNum(s.before) ? K.scaleRead($('#cScene'), 'ngAfter') : null;
       const g = ng();
       g.sessions.unshift(s);
       if (g.sessions.length > 1000) g.sessions.length = 1000;
@@ -953,8 +982,9 @@
         <div class="yg-result-art">${A.yokai(yid, 'happy')}</div>
         <p class="yg-result-say">${esc(y.name)}が、少し静かになりました</p>
         ${hearts(r.friend)}
-        <p class="mk-result-num">${s.before}<span>→</span>${s.after}</p>
-        <p>${d < 0 ? 'ざわざわ度が ' + (-d) + ' 下がりました。'
+        ${K.isNum(s.before) && K.isNum(s.after) ? `<p class="mk-result-num">${s.before}<span>→</span>${s.after}</p>` : ''}
+        <p>${!(K.isNum(s.before) && K.isNum(s.after)) ? '眺めたこと自体が、注意の練習です。おつかれさまでした。'
+          : d < 0 ? 'ざわざわ度が ' + (-d) + ' 下がりました。'
           : d === 0 ? 'ざわざわ度は変わりませんでした。変わらない日も、眺めたことは練習になっています。'
             : 'ざわざわ度が上がりました。体や考えに注意を向けると、かえってざわつくこともあります。そんなときは「外の感覚だけ」や「お囃子の聞き分け」、休憩所の呼吸を試してください。'}</p>
         ${unlocked ? `<div class="honne"><p class="honne-k">${esc(y.name)}の本音が聞けるようになりました</p><blockquote>${esc(y.honne)}</blockquote></div>` : ''}

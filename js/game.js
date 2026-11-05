@@ -6,6 +6,9 @@
  *   ・事実か考えか（左右に仕分けるスコアアタック）
  *   ・百鬼夜行（4つの演目 → 大トリ。提灯3つ、芸の札。今夜の百鬼夜行は日付で決まる）
  *   ・見分けの星（妖怪ごとの見分けの腕前）
+ * 第八回：幸福の筋トレ（docs/EXPERT_DEBATE_8.md）
+ *   ・客席の笑顔さがし（しかめっ面の中から笑顔をさがす。受け入れてくれる顔に注意を向ける練習）
+ *   ・心の五力（見分ける・言い直す・分ける・戻る・見つける）。遊ぶほどレベルが上がる
  * 点数は自己ベストだけ。連続記録なし。3回続けたら、一度だけひと休みの声かけ。
  */
 (function () {
@@ -44,7 +47,49 @@
       g.sort = Object.assign({ plays: 0, best: 0 }, g.sort);
       g.run = Object.assign({ plays: 0, best: 0, clears: 0, perfect: 0, daily: {} }, g.run);
       g.eye = g.eye || {};
+      g.egao = Object.assign({ plays: 0, best: 0 }, g.egao);
+      g.power = Object.assign({ miwake: 0, iinaoshi: 0, wakeru: 0, modoru: 0, mitsukeru: 0 }, g.power);
       return g;
+    }
+    // 心の五力：練習の積み重ねでレベルが上がる（4・16・36・64……回で次のレベル）
+    function power(k) { const g = gs(); g.power[k] = (g.power[k] || 0) + 1; if (GM) GM.gain[k] = (GM.gain[k] || 0) + 1; }
+    const lvOf = n => Math.floor(Math.sqrt((n || 0) / 4)) + 1;
+    function powerPanel(g) {
+      return `<section class="power-board" aria-labelledby="pw-h">
+        <h2 id="pw-h" class="sec-title"><span>心の五力</span></h2>
+        <p class="zk-shelf-note">大喜利は、心の筋トレ。遊ぶほど、幸福につながる五つの力が育ちます。</p>
+        <ul class="power-list">${G.powers.map(P => {
+          const n = g.power[P.id] || 0; const lv = lvOf(n); const lo = 4 * (lv - 1) * (lv - 1), hi = 4 * lv * lv;
+          const pct = Math.round((n - lo) / (hi - lo) * 100);
+          return `<li class="pw"><div class="pw-top"><b class="pw-name">${esc(P.name)}</b><span class="pw-lv">Lv.${lv}</span></div>
+            <span class="pw-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(P.name)}、次のレベルまで"><i style="width:${pct}%"></i></span>
+            <span class="pw-d">${esc(P.desc)}<small>${esc(P.game)}</small></span></li>`;
+        }).join('')}</ul>
+      </section>`;
+    }
+    function gainHtml() {
+      if (!GM || !GM.gain) return '';
+      const items = G.powers.filter(P => GM.gain[P.id]).map(P => `<li><b>${esc(P.name)}</b> +${GM.gain[P.id]}</li>`);
+      return items.length ? `<div class="gr-gain"><p class="gr-gain-k">今日きたえた力</p><ul>${items.join('')}</ul></div>` : '';
+    }
+    const mark = k => { if (K.mark) K.mark(k); };
+
+    // ============ 客席の顔（笑顔さがし） ============
+    const SKIN = ['#f3d2b3', '#e8bf98', '#d9a77f', '#f6dcc6', '#c99572'];
+    const HAIR = ['#2b2420', '#5a3a22', '#8a6a4a', '#3b3b3b', '#bdbdbd', '#7a2f2f'];
+    const HAIRS = [
+      'M8 30 Q9 8 30 8 Q51 8 52 30 Q45 17 30 17 Q15 17 8 30Z',
+      'M9 28 Q12 6 32 8 Q50 10 51 26 Q40 14 22 20 Q14 23 9 28Z',
+      'M8 34 Q6 8 30 7 Q54 8 52 34 L48 34 Q47 16 30 16 Q13 16 12 34Z',
+      'M12 20 Q30 2 48 20 Q30 12 12 20Z'
+    ];
+    function faceSvg(kind, v, subtle) {
+      const sk = SKIN[v % SKIN.length], hc = HAIR[(v * 7 + 3) % HAIR.length], hair = HAIRS[(v * 3) % HAIRS.length];
+      const eyes = kind === 'smile' && !subtle ? '<path d="M19 31 Q22.5 27.5 26 31 M34 31 Q37.5 27.5 41 31" class="eg-line"/>' : '<circle cx="22.5" cy="30" r="2.4" class="eg-ink"/><circle cx="37.5" cy="30" r="2.4" class="eg-ink"/>';
+      const brows = kind === 'frown' && !subtle ? '<path d="M17 23 L26 26 M43 23 L34 26" class="eg-line"/>' : '';
+      const mouth = kind === 'smile' ? (subtle ? 'M22 41 Q30 46 38 41' : 'M20 39 Q30 50 40 39') : kind === 'frown' ? (subtle ? 'M22 44 Q30 40 38 44' : 'M20 46 Q30 36 40 46') : 'M22 43 L38 43';
+      const cheeks = kind === 'smile' && !subtle ? '<circle cx="16.5" cy="37" r="3.2" class="eg-cheek"/><circle cx="43.5" cy="37" r="3.2" class="eg-cheek"/>' : '';
+      return `<svg viewBox="0 0 60 60" class="eg-svg" aria-hidden="true"><circle cx="30" cy="33" r="22" fill="${sk}" class="eg-face-c"/><path d="${hair}" fill="${hc}"/>${brows}${eyes}${cheeks}<path d="${mouth}" class="eg-line eg-mouth"/></svg>`;
     }
     function eyeRecord(yid, ok) { const g = gs(); const e = g.eye[yid] || (g.eye[yid] = { ok: 0, ng: 0 }); if (ok) e.ok += 1; else e.ng += 1; }
     function stars(yid) {
@@ -74,7 +119,7 @@
         <div class="run-parade" aria-hidden="true">${parade.map(id => `<span>${A.yokai(id, 'smug')}</span>`).join('')}</div>
         <p class="run-k">毎日かわる、一夜の挑戦</p>
         <h2 id="run-h" class="run-name">今夜の百鬼夜行</h2>
-        <p class="run-desc">妖怪当て・言い直し・事実か考えか・いまひろいの4演目を、毎回ちがう順番で。演目のあいだに「芸の札」を一枚選び、大トリで百鬼の行列を見送ります。提灯は3つ。約5分。</p>
+        <p class="run-desc">妖怪当て・言い直し・事実か考えか・いまひろい・笑顔さがしの5つから4演目を、毎回ちがう順番で。演目のあいだに「芸の札」を一枚選び、大トリで百鬼の行列を見送ります。提灯は3つ。約5分。</p>
         <p class="run-stat">${todayRec ? `今夜の記録 <strong>${todayRec.best}</strong>点` : '今夜はまだ挑んでいません'}・自己ベスト ${g.run.best}点・越えた夜 ${g.run.clears}回</p>
         <div class="btn-col run-btns">
           <button class="btn btn-run" data-act="runStart" data-daily="1">今夜の百鬼夜行に挑む</button>
@@ -82,8 +127,20 @@
         </div>
       </section>
 
+      ${powerPanel(g)}
+
       <h2 class="sec-title"><span>単品の演目</span></h2>
       <p class="zk-shelf-note">命（提灯）はありません。段位や形を選んで、気軽にどうぞ。</p>
+
+      <section class="game-card game-card-egao" aria-labelledby="ge-h">
+        <div class="gc-art gc-art-egao" aria-hidden="true">${faceSvg('frown', 1)}${faceSvg('smile', 2)}${faceSvg('neutral', 3)}${faceSvg('frown', 4)}</div>
+        <div class="gc-body">
+          <h3 id="ge-h" class="gc-name">客席の笑顔さがし</h3>
+          <p class="gc-desc">高座から客席を見わたして、笑っているお客さんをひとり見つけます。しかめっ面より、受け入れてくれる顔に目が行くように。${G.egaoSec}秒。</p>
+          <p class="gc-stat">自己ベスト <strong>${g.egao.best}</strong>点・遊んだ ${g.egao.plays}回</p>
+        </div>
+        <div class="gc-foot"><button class="btn btn-small btn-primary" data-act="egaoStart">はじめる</button></div>
+      </section>
 
       <section class="game-card game-card-quiz" aria-labelledby="gq-h">
         <div class="gc-art">${A.yokai('satori', 'smug')}<span class="gc-q" aria-hidden="true">？</span></div>
@@ -141,7 +198,7 @@
       </div>
 
       <aside class="howto"><p class="howto-k">このゲームのねらい</p>
-        <p>妖怪当ては考え方のクセを見分ける練習、言い直し問題は「現実に合った考え」と「ポジティブの押しつけ」を見分ける練習、事実か考えかは出来事と解釈を分ける練習、いまひろいは注意を「いま」に向け直す練習です。点数は自己ベストだけ。だれとも比べません。</p>
+        <p>妖怪当ては考え方のクセを見分ける練習、言い直し問題は「現実に合った考え」と「ポジティブの押しつけ」を見分ける練習、事実か考えかは出来事と解釈を分ける練習、いまひろいは注意を「いま」に向け直す練習、笑顔さがしは受け入れてくれる顔に注意を向ける練習です（しかめっ面の中から笑顔をさがす練習で、ストレスがやわらいだという研究があります）。点数は自己ベストだけ。だれとも比べません。</p>
       </aside>`;
     };
 
@@ -150,7 +207,7 @@
     function openOverlay(cls, title, opts) {
       closeOverlay();
       opts = opts || {};
-      GM = { alive: true, timers: [], raf: 0, score: 0, lanterns: opts.lanterns == null ? null : opts.lanterns, perks: new Set(), run: !!opts.run, lost: 0, cleanup: [], stageForgiven: false };
+      GM = { alive: true, timers: [], raf: 0, score: 0, gain: {}, lanterns: opts.lanterns == null ? null : opts.lanterns, perks: new Set(), run: !!opts.run, lost: 0, cleanup: [], stageForgiven: false };
       $('#game-root').innerHTML = `<div class="game ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
         <div class="game-top"><p class="game-title" id="gTitle">${esc(title)}</p><span class="game-lan" id="gLan" aria-live="polite"></span><span class="game-q" id="gInfo"></span><span class="game-score" id="gScore">0</span><button class="game-x" data-act="gameQuit">やめる</button></div>
         <div class="game-main" id="gMain"></div>
@@ -326,6 +383,7 @@
         markChoices(q, ans.id);
         if (q.type === 'yokai') eyeRecord(q.n.y, ok);
         if (ok) {
+          power(q.type === 're' ? 'iinaoshi' : 'miwake');
           combo += 1; res.correct += 1; res.maxCombo = Math.max(res.maxCombo, combo);
           const pts = Math.round((100 + Math.round(ans.left * 100) + Math.min(100, (combo - 1) * 20)) * perkMul());
           addScore(pts); goodBurst(pts, combo);
@@ -409,6 +467,7 @@
         el.classList.add(ans === 'fact' ? 'out-left' : 'out-right');
         const fb = $('#sFb');
         if (ok) {
+          power('wakeru');
           combo += 1; res.correct += 1; res.maxCombo = Math.max(res.maxCombo, combo);
           const pts = Math.round((50 + Math.min(60, (combo - 1) * 10)) * perkMul());
           addScore(pts);
@@ -510,6 +569,7 @@
             return;
           }
           if (it.kind === 'body' && !st.bodyHint) { st.bodyHint = true; const g = $('#hGuide'); if (g) g.textContent = '体のざわざわも、「いま」の感覚です。'; }
+          power('modoru');
           award(it, 10, it.kind === 'body' ? 'からだ' : 'いま', 'pick');
         };
         const onUp = () => {
@@ -518,7 +578,7 @@
           if (h.it.done) return;
           const held = performance.now() - h.t0;
           h.it.el.classList.remove('holding');
-          if (held >= 600) { st.savors += 1; award(h.it, 60, '味わった！', 'savor'); Sfx.bell(); }
+          if (held >= 600) { st.savors += 1; power('mitsukeru'); award(h.it, 60, '味わった！', 'savor'); Sfx.bell(); }
           else award(h.it, 15, '福', 'pick');
         };
         arena.addEventListener('pointerdown', onDown);
@@ -560,6 +620,80 @@
       });
     }
 
+    // ============ ミニゲーム：客席の笑顔さがし ============
+    // しかめっ面のお客さんの中から、笑っているひとりをさがす（受容への注意訓練の研究を参考に）
+    async function playEgao(opt) {
+      $('#gMain').innerHTML = `<div class="egao-wrap">
+        <p class="egao-guide">笑っているお客さんを、ひとり見つけて</p>
+        <div class="egao-grid" id="egGrid"></div>
+        <p class="egao-fb" id="egFb" aria-live="polite"></p>
+        <div class="q-timer" aria-hidden="true"><i id="egTimer"></i></div>
+      </div>`;
+      const res = { found: 0, wrong: 0, maxCombo: 0, dead: false };
+      let combo = 0;
+      if (GM) GM.stageForgiven = false;
+      const t0 = performance.now();
+      const timeUp = () => opt.sec && performance.now() - t0 >= opt.sec * 1000;
+      for (let r = 0; ; r++) {
+        if (!alive()) return null;
+        if (opt.rounds && r >= opt.rounds) break;
+        if (timeUp()) break;
+        const lvl = (opt.start || 0) + r;
+        const n = lvl < 4 ? 3 : lvl < 10 ? 4 : 5;
+        const subtle = lvl >= 8;
+        const total = n * n;
+        const target = Math.floor(rnd() * total);
+        const faces = Array.from({ length: total }, (_, i) => (i === target ? 'smile' : lvl >= 3 && rnd() < Math.min(0.5, 0.1 + lvl * 0.04) ? 'neutral' : 'frown'));
+        const grid = $('#egGrid');
+        grid.style.setProperty('--n', n);
+        grid.innerHTML = faces.map((k, i) => `<button class="eg-face" data-k="${k}" aria-label="お客さん ${i + 1}">${faceSvg(k, Math.floor(rnd() * 97), subtle)}</button>`).join('');
+        grid.classList.remove('in'); void grid.offsetWidth; grid.classList.add('in');
+        setInfo(opt.rounds ? (r + 1) + '/' + opt.rounds : '残り ' + Math.max(0, Math.ceil(opt.sec - (performance.now() - t0) / 1000)) + '秒');
+        const g0 = performance.now();
+        const ans = await new Promise(resolve => {
+          let done = false;
+          const finish = k => { if (done) return; done = true; grid.removeEventListener('click', onClick); resolve(k); };
+          const onClick = e => { const b = e.target.closest('.eg-face'); if (b) finish(b); };
+          grid.addEventListener('click', onClick);
+          if (GM) GM.cleanup.push(() => grid.removeEventListener('click', onClick));
+          const tick = () => {
+            if (!alive() || done) return;
+            const left = opt.perGrid ? Math.max(0, 1 - (performance.now() - g0) / (opt.perGrid * 1000)) : Math.max(0, 1 - (performance.now() - t0) / (opt.sec * 1000));
+            const bar = $('#egTimer'); if (bar) { bar.style.width = (left * 100) + '%'; bar.classList.toggle('low', left < 0.3); }
+            if (left <= 0) { finish(opt.perGrid ? null : 'timeup'); return; }
+            if (!opt.perGrid) setInfo('残り ' + Math.max(0, Math.ceil(opt.sec - (performance.now() - t0) / 1000)) + '秒');
+            GM.raf = requestAnimationFrame(tick);
+          };
+          GM.raf = requestAnimationFrame(tick);
+        });
+        if (!alive()) return null;
+        if (ans === 'timeup') break;
+        const fb = $('#egFb');
+        if (ans && ans.dataset.k === 'smile') {
+          power('mitsukeru');
+          combo += 1; res.found += 1; res.maxCombo = Math.max(res.maxCombo, combo);
+          const quick = Math.max(0, 1 - (performance.now() - g0) / 4000);
+          const pts = Math.round((40 + Math.round(quick * 40) + Math.min(60, (combo - 1) * 8)) * perkMul());
+          addScore(pts);
+          ans.classList.add('hit');
+          fb.className = 'egao-fb good'; fb.textContent = 'ウケてる！ +' + pts + (combo >= 3 ? '　' + combo + '連続' : '');
+          Sfx.combo(combo); buzz(10);
+          await wait(reduceMotion() ? 120 : 380);
+        } else {
+          combo = 0; res.wrong += 1;
+          if (ans) ans.classList.add('miss');
+          const sm = $('#egGrid .eg-face[data-k="smile"]'); if (sm) sm.classList.add('reveal');
+          fb.className = 'egao-fb bad'; fb.textContent = ans ? 'その人は、まだ笑っていないみたい。笑顔はここ。' : '時間切れ。笑顔はここにいました。';
+          Sfx.pop(); shake();
+          miss();
+          if (dead()) { res.dead = true; await wait(1400); return res; }
+          await wait(1100);
+        }
+        if (fb) fb.textContent = '';
+      }
+      return res;
+    }
+
     // ============ ミニゲーム：大トリ「百鬼夜行」 ============
     async function playBoss() {
       const n = 12;
@@ -589,6 +723,7 @@
         markChoices(q, ans.id);
         eyeRecord(yid, ok);
         if (ok) {
+          power('miwake');
           combo += 1;
           const pts = Math.round((150 + Math.round(ans.left * 100) + Math.min(150, (combo - 1) * 25)) * perkMul());
           addScore(pts); goodBurst(pts, combo);
@@ -608,12 +743,12 @@
     }
 
     // ============ 百鬼夜行（ラン） ============
-    const STAGE_NAME = { quiz: '妖怪当て', re: '言い直し', sort: '事実か考えか', hiroi: 'いまひろい', boss: '大トリ・百鬼夜行' };
+    const STAGE_NAME = { quiz: '妖怪当て', re: '言い直し', sort: '事実か考えか', hiroi: 'いまひろい', egao: '笑顔さがし', boss: '大トリ・百鬼夜行' };
     async function stageIntro(i, kind) {
       const label = kind === 'boss' ? '大トリ' : ['一夜目', '二夜目', '三夜目', '四夜目'][i];
       $('#gMain').innerHTML = `<div class="stage-intro${kind === 'boss' ? ' boss' : ''}">
         <p class="si-k">${label}</p><h2 class="si-name">${esc(STAGE_NAME[kind])}</h2>
-        <p class="si-d">${kind === 'boss' ? '百鬼の行列が、やってきます。一体ずつ、正体を見破って見送りましょう。' : kind === 'hiroi' ? 'いまを拾えばクリア。考えをつかんでも提灯は消えません。' : 'まちがえると、提灯がひとつ消えます。'}</p>
+        <p class="si-d">${kind === 'boss' ? '百鬼の行列が、やってきます。一体ずつ、正体を見破って見送りましょう。' : kind === 'hiroi' ? 'いまを拾えばクリア。考えをつかんでも提灯は消えません。' : kind === 'egao' ? 'しかめっ面の客席から、笑顔をひとり。見落とすと、提灯がひとつ消えます。' : 'まちがえると、提灯がひとつ消えます。'}</p>
       </div>`;
       Sfx.hyoshigi();
       await wait(reduceMotion() ? 400 : 1700);
@@ -650,7 +785,7 @@
       openOverlay('game-run', daily ? '今夜の百鬼夜行' : '百鬼夜行', { lanterns: 3, run: true });
       rnd = rndKeep;
       GM.daily = daily;
-      const order = shuffle(['quiz', 're', 'sort', 'hiroi']);
+      const order = shuffle(['quiz', 're', 'sort', 'hiroi', 'egao']).slice(0, 4);
       const log = [];
       for (let i = 0; i < order.length; i++) {
         await stageIntro(i, order[i]);
@@ -659,6 +794,7 @@
         if (order[i] === 'quiz') r = await playQuiz({ n: 5, choices: i < 2 ? 4 : 6, sec: i < 2 ? 10 : 8, types: ['yokai', 'yokai', 'tk'], confuse: i >= 1, label: '妖怪当て', auto: true });
         else if (order[i] === 're') r = await playQuiz({ n: 3, choices: 3, sec: 12, types: ['re'], label: '言い直し', auto: true });
         else if (order[i] === 'sort') r = await playSort({ n: 8, perCard: Math.max(3.5, 5.5 - i * 0.5) });
+        else if (order[i] === 'egao') r = await playEgao({ rounds: 8, start: 2 + i * 2, perGrid: Math.max(3, 4.5 - i * 0.4) });
         else {
           r = await playHiroi({ sec: 20, goal: 6 + i, neutral: i >= 1, fuku: true, body: true, split: true });
           if (r && !r.cleared) { miss(); await wait(900); }
@@ -690,6 +826,7 @@
       }
       const up = addXP(cleared ? 10 : D.XP.game);
       K.save();
+      mark('game:run'); log.forEach(k => mark('game:' + (k === 're' ? 'quiz' : k)));
       sessionRuns.push(Date.now());
       const recent = sessionRuns.filter(t => Date.now() - t < 30 * 60e3).length;
       const showNudge = recent >= 3 && !nudged;
@@ -702,6 +839,7 @@
         ${GM.score > prevBest ? '<p class="gr-best">自己ベスト更新！</p>' : `<p class="gr-sub">自己ベスト ${g.run.best}点${GM.daily ? `・今夜の記録 ${g.run.daily.best}点` : ''}</p>`}
         <dl class="gr-stats"><div><dt>こなした演目</dt><dd>${log.length}<small>/4</small></dd></div><div><dt>残った提灯</dt><dd>${Math.max(0, GM.lanterns)}</dd></div><div><dt>大トリ</dt><dd class="gr-rank">${cleared ? '越えた' : '—'}</dd></div></dl>
         ${GM.perks.size ? `<p class="gr-note">この夜の芸の札：${Array.from(GM.perks).map(id => esc(PERKS[id].name)).join('、')}</p>` : ''}
+        ${gainHtml()}
         ${showNudge ? '<p class="gr-rest">3回続けて遊びました。ひと休みしませんか。水を一杯飲んだり、窓の外を眺めたり。休むのも芸のうちです。</p>' : ''}
         ${up ? `<p class="xp-gain"><strong>${esc(up)}に昇進しました</strong></p>` : ''}
         <div class="btn-col"><button class="btn btn-primary" data-act="runStart" data-daily="${GM.daily ? 1 : 0}">もう一夜</button><button class="btn btn-ghost" data-act="gameQuit">大喜利にもどる</button></div>
@@ -732,6 +870,7 @@
       const unlocked = next && prevBest < next.unlock && GM.score >= next.unlock;
       const up = addXP(D.XP.game);
       K.save();
+      mark('game:quiz');
       if (perfect) Sfx.applause(); else Sfx.chime();
       const missed = Array.from(new Set(r.missed));
       setInfo('');
@@ -741,6 +880,7 @@
         ${GM.score > prevBest ? '<p class="gr-best">この段位の自己ベスト更新！</p>' : `<p class="gr-sub">${esc(L.name)}の自己ベスト ${g.quiz.levelBest[L.id]}点</p>`}
         ${unlocked ? `<p class="gr-unlock">「${esc(next.name)}」の段位が開きました！</p>` : next && !levelUnlocked(next) ? `<p class="gr-sub">「${esc(next.name)}」まで、あと${Math.max(0, next.unlock - g.quiz.levelBest[L.id])}点</p>` : ''}
         <dl class="gr-stats"><div><dt>正解</dt><dd>${r.correct}<small>/${r.total}</small></dd></div><div><dt>最大コンボ</dt><dd>${r.maxCombo}</dd></div><div><dt>段位</dt><dd class="gr-rank">${esc(L.name)}</dd></div></dl>
+        ${gainHtml()}
         ${missed.length ? `<div class="gr-missed"><p class="gr-missed-k">見分けにくかった妖怪</p><ul>${missed.map(id => `<li>${A.yokai(id, 'norm')}<span>${esc(D.yokaiById[id].name)} ${starStr(stars(id))}</span></li>`).join('')}</ul><p class="muted small">「苦手克服」で、まちがえやすい妖怪を多めに出せます。</p></div>` : ''}
         ${up ? `<p class="xp-gain"><strong>${esc(up)}に昇進しました</strong></p>` : ''}
         <div class="btn-col">
@@ -767,6 +907,7 @@
       g.hiroi[key] = Math.max(prevBest, GM.score);
       const up = addXP(D.XP.game);
       K.save();
+      mark('game:hiroi');
       Sfx.bell();
       setInfo('');
       $('#gMain').innerHTML = `<div class="game-result">
@@ -774,6 +915,7 @@
         <p class="gr-score">${GM.score}<small>点</small></p>
         ${GM.score > prevBest ? '<p class="gr-best">自己ベスト更新！</p>' : `<p class="gr-sub">自己ベスト ${g.hiroi[key]}点</p>`}
         <dl class="gr-stats"><div><dt>拾った「いま」</dt><dd>${r.picks}</dd></div><div><dt>見送った考え</dt><dd>${r.passes}</dd></div><div><dt>つかんだ考え</dt><dd>${r.grabs}</dd></div></dl>
+        ${gainHtml()}
         ${r.savors ? `<p class="gr-note">福の泡を${r.savors}回、味わいました。よいことは、少し長くとどめると残ります。</p>` : ''}
         <p class="gr-note">${r.grabs ? '考えをつかむと、考えは増えます。気づいて離せたら、それで大丈夫。注意は、何度でも「いま」に向け直せます。' : '考えに手を出さずに、「いま」を拾えました。注意の舵は、あなたが握っています。'}</p>
         ${up ? `<p class="xp-gain"><strong>${esc(up)}に昇進しました</strong></p>` : ''}
@@ -798,6 +940,7 @@
       g.sort.best = Math.max(prevBest, GM.score);
       const up = addXP(D.XP.game);
       K.save();
+      mark('game:sort');
       Sfx.bell();
       setInfo('');
       const acc = r.total ? Math.round(r.correct / r.total * 100) : 0;
@@ -807,12 +950,45 @@
         ${GM.score > prevBest ? '<p class="gr-best">自己ベスト更新！</p>' : `<p class="gr-sub">自己ベスト ${g.sort.best}点</p>`}
         <dl class="gr-stats"><div><dt>仕分けた</dt><dd>${r.total}<small>枚</small></dd></div><div><dt>正解率</dt><dd>${acc}<small>%</small></dd></div><div><dt>最大コンボ</dt><dd>${r.maxCombo}</dd></div></dl>
         <p class="gr-note">出来事（事実）と、頭の中のセリフ（考え）を分けられると、考えにツッコみやすくなります。</p>
+        ${gainHtml()}
         ${up ? `<p class="xp-gain"><strong>${esc(up)}に昇進しました</strong></p>` : ''}
         <div class="btn-col"><button class="btn btn-primary" data-act="sortStart">もう一度</button><button class="btn btn-ghost" data-act="gameQuit">大喜利にもどる</button></div>
       </div>`;
       GM.alive = false;
     }
     ACT.sortStart = () => startSort();
+
+    // ============ 単品：客席の笑顔さがし ============
+    async function startEgao() {
+      rnd = Math.random;
+      openOverlay('game-egao', '客席の笑顔さがし', {});
+      Sfx.hyoshigi();
+      await wait(reduceMotion() ? 50 : 500);
+      if (!alive()) return;
+      const r = await playEgao({ sec: G.egaoSec });
+      if (!r || !GM) return;
+      const g = gs();
+      const prevBest = g.egao.best;
+      g.egao.plays += 1;
+      g.egao.best = Math.max(prevBest, GM.score);
+      const up = addXP(D.XP.game);
+      K.save();
+      mark('game:egao');
+      Sfx.bell();
+      setInfo('');
+      $('#gMain').innerHTML = `<div class="game-result">
+        <p class="gr-k">お後がよろしいようで</p>
+        <p class="gr-score">${GM.score}<small>点</small></p>
+        ${GM.score > prevBest ? '<p class="gr-best">自己ベスト更新！</p>' : `<p class="gr-sub">自己ベスト ${g.egao.best}点</p>`}
+        <dl class="gr-stats"><div><dt>見つけた笑顔</dt><dd>${r.found}</dd></div><div><dt>見落とし</dt><dd>${r.wrong}</dd></div><div><dt>最大コンボ</dt><dd>${r.maxCombo}</dd></div></dl>
+        <p class="gr-note">客席には、いつもひとりは笑っている人がいます。受け入れてくれる顔に目が向くと、人前の緊張や、冷たくされる不安が少しやわらぐことがあります。</p>
+        ${gainHtml()}
+        ${up ? `<p class="xp-gain"><strong>${esc(up)}に昇進しました</strong></p>` : ''}
+        <div class="btn-col"><button class="btn btn-primary" data-act="egaoStart">もう一度</button><button class="btn btn-ghost" data-act="gameQuit">大喜利にもどる</button></div>
+      </div>`;
+      GM.alive = false;
+    }
+    ACT.egaoStart = () => startEgao();
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#game-root').childElementCount && !document.querySelector('#sheet-root .sheet-wrap')) ACT.gameQuit(); });
     window.addEventListener('hashchange', () => { if ($('#game-root').childElementCount) closeOverlay(); });
