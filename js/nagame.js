@@ -14,7 +14,7 @@
     const N = D.NAGAME;
     const PR = Object.fromEntries(N.practices.map(p => [p.id, p]));
     const STATE_BY = Object.fromEntries(N.states.map(s => [s.id, s]));
-    const BODY_PRACTICES = ['hara', 'ippuku', 'gyuto'];
+    const BODY_PRACTICES = ['hara', 'ippuku', 'gyuto', 'innerbody'];
     const UI = { state: null };
     let RUN = null;
 
@@ -43,6 +43,9 @@
       if (id === 'ippuku') return A.chawan();
       if (id === 'gyuto') return A.seated({ mini: true });
       if (id === 'ohayashi') return A.instrument('taiko');
+      if (id === 'innerbody') return A.seated({ mini: true, glow: true });
+      if (id === 'imakoko') return '<span class="ik-mini" aria-hidden="true">いま<br>ここ</span>';
+      if (id === 'elevator') return '<span class="ev-mini" aria-hidden="true"><b>▼</b>B1</span>';
       return '<span class="fuda fuda-mini" aria-hidden="true"><span class="fuda-no">札</span></span>';
     }
     function allParts() { return ng().sessions.reduce((a, s) => a.concat(s.parts && s.parts.length ? s.parts : [s]), []); }
@@ -186,6 +189,10 @@
 
     ACT.ngOpen = el => { if (el.dataset.id === 'geso') gesoForm(); else preSheet(el.dataset.id); };
     ACT.ngOmakase = el => omakaseSheet(el.dataset.id);
+    K.openOmakase = id => {
+      if (K.current() !== 'nagame') { K.go('nagame'); setTimeout(() => omakaseSheet(id), 320); }
+      else omakaseSheet(id);
+    };
     ACT.ngFitGo = el => { const k = el.dataset.id; if (k.indexOf('set:') === 0) omakaseSheet(k.slice(4)); else if (k === 'geso') gesoForm(); else preSheet(k); };
 
     // ---- はじめる前のシート ----
@@ -224,6 +231,10 @@
         extra = `<p class="note-card">この演目は<strong>音を使います</strong>（効果音の設定がオフでも鳴ります）。イヤホンがあると、左右の音が聞き分けやすくなります。聞き分けられなくても、向け直そうとしたら一本です。</p>`;
       } else if (id === 'ma') {
         extra = '<p class="muted small">考えが浮かんだら「考えが来た」をタップします。5回で終わります。待っているあいだ、時間は表示しません。</p>';
+      } else if (id === 'innerbody') {
+        extra = `<p class="note-card">「何も感じない」も正解です。感じようと力まず、内側にそっと注意を置くだけで十分。体の内側に注意を向けると不安が強くなる方は、「ハラに灯す」の「外の感覚だけ」から始めてください。</p>${voiceField(false)}`;
+      } else if (id === 'imakoko' || id === 'elevator') {
+        extra = `<p class="note-card">深く吸おうとしなくて大丈夫。吐く息を少し長めに。息苦しくなったら、すぐにふつうの呼吸に戻してください。</p>${voiceField(false)}`;
       }
       openSheet(`<form class="form" data-form="ngStart" data-id="${id}">
         <p class="eyebrow">ながめ席・${esc((N.groups.find(g => g.id === p.group) || {}).label || '')}</p>
@@ -295,7 +306,7 @@
       document.body.classList.add('no-scroll');
       const part = opts.set ? { practice: id } : sess;
       RUN = { id, sess, part, opts, timers: [], intervals: [], ended: false, audio: null, i: -1 };
-      ({ toro: runToro, ma: runMa, hara: runHara, ippuku: runIppuku, gyuto: runGyuto, ohayashi: runOhayashi })[id]();
+      ({ toro: runToro, ma: runMa, hara: runHara, ippuku: runIppuku, gyuto: runGyuto, ohayashi: runOhayashi, innerbody: runInnerbody, imakoko: runImakoko, elevator: runElevator })[id]();
       setTimeout(() => { const b = $('#cBar button'); if (b) b.focus({ preventScroll: true }); }, 60);
     }
     function closeRun() {
@@ -314,6 +325,7 @@
     // 演目が自然に終わったとき：おまかせなら次へ、そうでなければ終わりの画面へ
     function finishPart() {
       if (!RUN || RUN.ended) return;
+      RUN.part.done = true; // 最後まで通した（伝説の出現条件に使う）
       if (RUN.opts.set && RUN.opts.queue.length) interPanel();
       else endPanel();
     }
@@ -712,6 +724,140 @@
       later(() => hayashiStep(i + 1), s.sec * 1000);
     }
 
+    // ---- インナーボディ ----
+    function runInnerbody() {
+      Object.assign(RUN, { steps: N.innerbody, i: -1, stepFn: innerStep });
+      guidedShell(A.seated({ glow: true }), '何も感じなくても大丈夫。内側に、そっと注意を置くだけ。');
+      const fig = $('#gFig');
+      fig.classList.add('ib');
+      fig.style.setProperty('--fog', '0');
+      innerStep(0);
+    }
+    function innerStep(i) {
+      if (!alive('innerbody')) return;
+      haltTimers();
+      if (i >= RUN.steps.length) { Sfx.bell(); finishPart(); return; }
+      RUN.i = i; RUN.part.steps = i + 1;
+      const s = RUN.steps[i];
+      const fig = $('#gFig');
+      fig.classList.add('lit-' + s.lit); // 光は積み重なっていく（手 → 腕 → 足 → 胴体 → 全身）
+      stepTexts(i, s.title, s.text);
+      setProg(s.sec);
+      if (i > 0) buzz(15);
+      speakGuide(s.title + '。' + s.text);
+      later(() => innerStep(i + 1), s.sec * 1000);
+    }
+
+    // ---- 今ここ呼吸 ----
+    function runImakoko() {
+      const C = N.imakoko;
+      Object.assign(RUN.part, { breaths: 0, backs: 0 });
+      RUN.i = -1;
+      $('#cScene').innerHTML = `<div class="ik-wrap">
+        <div class="ik-ring" id="ikRing"><span id="ikWord">いま</span></div>
+        <p class="ik-count" id="ikCount">0 / ${C.breaths}</p>
+        <p class="calm-note ik-note">吸うときに「いま」、吐くときに「ここ」。息と言葉をそろえます。</p>
+        <p class="ik-back" aria-live="polite">もどった回数 <strong id="ikBack">0</strong></p>
+      </div>`;
+      $('#cBar').innerHTML = `<button class="btn btn-night-primary btn-block" data-act="ikBack">考えにそれてた → もどった</button>
+        <p class="calm-note">それたことに気づいて、戻ってこられたらタップ。戻れた回数が、この演目の一本です。${RUN.opts.voice ? '　音声ガイドつき。' : ''}</p>`;
+      const ring = $('#ikRing'), word = $('#ikWord');
+      const breathe = n => {
+        if (!alive('imakoko')) return;
+        if (n >= C.breaths) { Sfx.bell(); finishPart(); return; }
+        ring.classList.remove('out'); ring.style.transitionDuration = C.inhale + 's'; ring.classList.add('in');
+        word.textContent = 'いま';
+        speakGuide('いま', { rate: 0.7 });
+        later(() => {
+          if (!alive('imakoko')) return;
+          ring.classList.remove('in'); ring.style.transitionDuration = C.exhale + 's'; ring.classList.add('out');
+          word.textContent = 'ここ';
+          speakGuide('ここ', { rate: 0.6 });
+        }, C.inhale * 1000);
+        later(() => {
+          if (!alive('imakoko')) return;
+          RUN.part.breaths = n + 1; RUN.part.steps = n + 1;
+          const c = $('#ikCount'); if (c) c.textContent = (n + 1) + ' / ' + C.breaths;
+          breathe(n + 1);
+        }, (C.inhale + C.exhale) * 1000);
+      };
+      later(() => breathe(0), 800);
+    }
+    ACT.ikBack = () => {
+      if (!alive('imakoko')) return;
+      RUN.part.backs += 1;
+      const b = $('#ikBack'); if (b) { b.textContent = RUN.part.backs; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+      Sfx.bell(); buzz(15);
+    };
+
+    // ---- エレベーター呼吸 ----
+    function runElevator() {
+      const E = N.elevator;
+      const total = 1 + (E.floors.length - 1) + E.stay; // 5階で1呼吸 → 一階ずつ下りる → ハラ階でとどまる
+      Object.assign(RUN, { i: -1, evTotal: total });
+      Object.assign(RUN.part, { floor: '5F', reached: false, steps: 0 });
+      const panel = `<div class="ev-row">
+        <div class="ev-panel" aria-hidden="true">
+          <div class="ev-display"><span class="ev-arrow" id="evArrow">▼</span><span class="ev-floor" id="evFloor">5F</span><span class="ev-name" id="evName">頭</span></div>
+          <ol class="ev-floors">${E.floors.map(f => `<li data-f="${f.f}"><b>${f.f}</b><span>${esc(f.name)}</span></li>`).join('')}</ol>
+        </div>
+        <div class="hara-fig ev-fig" id="gFig">${A.seated()}</div>
+      </div>`;
+      guidedShell('', '吐く息にのせて、一階ずつ下ります。', panel);
+      $('#gNext').hidden = true;
+      const fig = $('#gFig');
+      fig.style.setProperty('--fog', '0');
+      const svg = $('svg', fig);
+      if (svg) svg.insertAdjacentHTML('beforeend', `<g class="ev-dot" id="evDot" style="transform: translate(0px, ${E.floors[0].y}px)"><circle cx="100" cy="0" r="16" class="ev-halo"/><circle cx="100" cy="0" r="8" class="ev-core"/></g>`);
+      setFloor(0, false);
+      evBreath(0);
+    }
+    function setFloor(idx, chime) {
+      const E = N.elevator; const f = E.floors[idx];
+      $$('.ev-floors li').forEach(li => li.classList.toggle('on', li.dataset.f === f.f));
+      const fl = $('#evFloor'), nm = $('#evName');
+      if (fl) fl.textContent = f.f; if (nm) nm.textContent = f.name;
+      const dot = $('#evDot'); if (dot) dot.style.transform = `translate(0px, ${f.y}px)`;
+      RUN.part.floor = f.f;
+      if (idx === E.floors.length - 1) { RUN.part.reached = true; const a = $('#evArrow'); if (a) a.textContent = '●'; $('#gFig').classList.add('at-hara'); }
+      if (chime) { Sfx.elev(); buzz(12); }
+    }
+    function evBreath(n) {
+      if (!alive('elevator')) return;
+      const E = N.elevator;
+      if (n >= RUN.evTotal) { Sfx.bell(); finishPart(); return; }
+      RUN.i = n; RUN.part.steps = n;
+      const last = E.floors.length - 1;
+      const target = Math.min(n, last); // n呼吸目の吐く息で、n階ぶん下りている
+      const descending = n >= 1 && n <= last;
+      const staying = n > last;
+      $('#gStep').textContent = (n + 1) + ' / ' + RUN.evTotal + ' 呼吸';
+      $('#gTitle').textContent = staying ? 'ハラ階にとどまる' : n === 0 ? '5階・頭から' : '下りていく';
+      $('#gText').textContent = staying ? 'おへその下で、息が出入りするのを感じます。頭のおしゃべりは、上の階に置いてきました。'
+        : n === 0 ? 'いまは頭の階。考えごとでいっぱいのフロアです。まずはひと呼吸。'
+          : '吐く息にのせて、意識のエレベーターを一階下へ。';
+      $('#gSub').textContent = '吸って……';
+      setProg(E.inhale + E.exhale);
+      speakGuide('吸って', { rate: 0.8 });
+      later(() => {
+        if (!alive('elevator')) return;
+        const f = E.floors[target];
+        $('#gSub').textContent = descending ? '吐きながら…… ' + f.f + '、' + f.name + 'へ' : '吐いて……';
+        speakGuide(descending ? '吐きながら、' + f.name + 'へ' : '吐いて', { rate: 0.8 });
+        if (descending) {
+          const dot = $('#evDot');
+          if (dot) { dot.style.transitionDuration = E.exhale + 's'; dot.style.transform = `translate(0px, ${f.y}px)`; }
+          const fl = $('#evFloor'); if (fl) fl.textContent = '▼';
+          later(() => {
+            if (!alive('elevator')) return;
+            setFloor(target, true);
+            const s = $('#gSub'); if (s) s.textContent = 'ポーン。' + f.f + '、' + f.name + 'です。';
+          }, E.exhale * 1000 - 300);
+        }
+      }, E.inhale * 1000);
+      later(() => evBreath(n + 1), (E.inhale + E.exhale) * 1000);
+    }
+
     // ---- 終わり（ざわざわ度の後） ----
     function partSummary(p) {
       switch (p.practice) {
@@ -745,6 +891,15 @@
         case 'ohayashi':
           return `<p class="end-big">${p.steps || 1}<small> / 6 段</small></p>
             <p class="calm-note">注意は、向け直せます。聞き分けられなくても、離れたことに気づいて戻そうとしたなら、それで一本です。</p>`;
+        case 'innerbody':
+          return `<p class="end-big">${p.steps || 1}<small> / 6 段</small></p>
+            <p class="calm-note">手の内側の、あの「生きている感じ」。何も感じなかった段があっても、注意を内側に向けたこと自体が練習です。</p>`;
+        case 'imakoko':
+          return `<p class="end-big">${p.breaths || 0}<small> 呼吸</small></p>
+            ${p.backs ? `<p class="calm-note">考えにそれて、<strong>${p.backs}回</strong>もどってきました。それたことではなく、戻れたことが一本です。</p>` : '<p class="calm-note">「いま」と「ここ」。それていたら、いつでも戻ってこられます。</p>'}`;
+        case 'elevator':
+          return `<p class="end-big">${p.reached ? 'B1' : (p.floor || '5F')}<small>${p.reached ? ' ハラ階に着きました' : ' まで下りました'}</small></p>
+            <p class="calm-note">頭のおしゃべりは、上の階に置いてきました。また頭に戻っていたら、エレベーターで下りてくればいい。</p>`;
         default: return '';
       }
     }

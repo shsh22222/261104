@@ -277,6 +277,109 @@
       ${extras(m, { sweat: [86, 42] })}`;
   };
 
+  // ---- 伝説の妖怪 ----
+  DRAW.daitengu = function (m) { // 大天狗
+    return `
+      <path d="M22 78 Q2 50 22 20 Q30 50 44 62 Z" fill="#2b2f3a" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M98 78 Q118 50 98 20 Q90 50 76 62 Z" fill="#2b2f3a" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M14 34 L26 44 M10 50 L26 54 M108 34 L94 44 M110 50 L94 54" stroke="#4a5060" stroke-width="2"/>
+      <path d="M30 116 Q32 86 60 84 Q88 86 90 116 Z" fill="#f1e9d6" stroke="${INK}" stroke-width="3"/>
+      <circle cx="46" cy="96" r="4.5" fill="#c8352b" stroke="${INK}" stroke-width="1.5"/><circle cx="60" cy="100" r="4.5" fill="#e3b04b" stroke="${INK}" stroke-width="1.5"/><circle cx="74" cy="96" r="4.5" fill="#1b6a4f" stroke="${INK}" stroke-width="1.5"/>
+      <circle cx="58" cy="56" r="24" fill="#d2463a" stroke="${INK}" stroke-width="3"/>
+      <path d="M52 34 L58 24 L64 34 Z" fill="${INK}"/>
+      <path d="M42 76 Q58 98 74 76 Q66 82 58 82 Q50 82 42 76 Z" fill="#f4f1ea" stroke="${INK}" stroke-width="2"/>
+      <path d="M40 46 L52 50 M76 46 L64 50" stroke="#f4f1ea" stroke-width="4" stroke-linecap="round"/>
+      ${eyes([[48, 56], [68, 56]], 4.5, m, { lid: '#d2463a' })}
+      <path d="M60 58 Q90 50 100 46 Q92 58 62 66 Z" fill="#d2463a" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+      <g transform="translate(16 94) rotate(-18)">
+        <path d="M0 -20 Q14 -10 0 10 Q-14 -10 0 -20 Z" fill="#f4f1ea" stroke="${INK}" stroke-width="2"/>
+        <path d="M0 -18 V10 M-6 -10 L0 -4 M6 -10 L0 -4" stroke="#b9b4a6" stroke-width="1.5"/>
+        <path d="M0 10 V22" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/>
+      </g>`;
+  };
+  DRAW.yatagarasu = function (m) { // 八咫烏
+    return `
+      <circle cx="60" cy="52" r="42" fill="#e3b04b" opacity=".92"/>
+      <circle cx="60" cy="52" r="42" fill="none" stroke="#f6d27a" stroke-width="3" stroke-dasharray="4 7"/>
+      <path d="M38 62 Q10 54 4 30 Q28 40 44 52 Z" fill="#1b1d26" stroke="${INK}" stroke-width="2"/>
+      <path d="M82 62 Q110 54 116 30 Q92 40 76 52 Z" fill="#1b1d26" stroke="${INK}" stroke-width="2"/>
+      <path d="M50 92 V108 M60 94 V110 M70 92 V108" stroke="#1b1d26" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M44 108 H56 M54 110 H66 M64 108 H76" stroke="#1b1d26" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="60" cy="68" rx="24" ry="27" fill="#1b1d26" stroke="${INK}" stroke-width="2"/>
+      <circle cx="62" cy="40" r="15" fill="#1b1d26" stroke="${INK}" stroke-width="2"/>
+      <path d="M74 38 L94 42 L74 47 Z" fill="#4a4f5c" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+      ${eyes([[66, 37]], 4.5, m, { lid: '#1b1d26', stroke: '#e9e7f3' })}`;
+  };
+  DRAW.baku = function (m) { // 獏
+    return `
+      <path d="M100 14 a12 12 0 1 0 10 20 a9 9 0 1 1 -10 -20 Z" fill="#e3c06a"/>
+      <path d="M84 30 l2 4 4 1 -4 1 -2 4 -2 -4 -4 -1 4 -1 Z M106 50 l1.5 3 3 1 -3 1 -1.5 3 -1.5 -3 -3 -1 3 -1 Z" fill="#f6e6b0"/>
+      <rect x="40" y="94" width="10" height="18" rx="4" fill="#b9a8d6" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="78" y="94" width="10" height="18" rx="4" fill="#b9a8d6" stroke="${INK}" stroke-width="2.5"/>
+      <ellipse cx="66" cy="80" rx="38" ry="24" fill="#b9a8d6" stroke="${INK}" stroke-width="3"/>
+      <path d="M52 64 Q66 56 86 66" fill="none" stroke="#d8cdea" stroke-width="3" stroke-linecap="round"/>
+      <path d="M22 66 Q8 76 14 94" fill="none" stroke="${INK}" stroke-width="11" stroke-linecap="round"/>
+      <path d="M22 66 Q8 76 14 94" fill="none" stroke="#b9a8d6" stroke-width="6" stroke-linecap="round"/>
+      <ellipse cx="34" cy="62" rx="20" ry="17" fill="#b9a8d6" stroke="${INK}" stroke-width="3"/>
+      <ellipse cx="44" cy="48" rx="6" ry="8" fill="#a593c8" stroke="${INK}" stroke-width="2"/>
+      ${eyes([[30, 60]], 4.5, m === 'norm' ? 'happy' : m, { lid: '#b9a8d6' })}
+      ${blush(38, 38, 68)}`;
+  };
+  DRAW.amabie = function (m) { // アマビエ
+    return `
+      <path d="M28 44 Q26 12 60 12 Q94 12 92 44 L96 98 Q88 92 82 100 L78 62 L42 62 L38 100 Q32 92 24 98 Z" fill="#5f9c82" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M34 50 Q36 74 30 92 M86 50 Q84 74 90 92" fill="none" stroke="#8cc4a8" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M42 62 Q60 56 78 62 L76 96 Q60 104 44 96 Z" fill="#9fc7d8" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M48 72 q6 6 12 0 q6 6 12 0 M48 84 q6 6 12 0 q6 6 12 0" fill="none" stroke="#6c9fb4" stroke-width="2"/>
+      <path d="M46 96 L40 114 L52 104 Z M60 100 L60 116 L68 104 Z M74 96 L80 114 L68 104 Z" fill="#9fc7d8" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+      <ellipse cx="60" cy="40" rx="19" ry="19" fill="#f6e2cc" stroke="${INK}" stroke-width="2.5"/>
+      ${eyes([[52, 38], [68, 38]], 4.5, m, { lid: '#f6e2cc' })}
+      <path d="M54 48 L60 60 L66 48 Z" fill="#e3893a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+  };
+  DRAW.raiju = function (m) { // 雷獣
+    return `
+      <path d="M16 14 L30 14 L22 30 L34 30 L12 56 L18 36 L8 36 Z" fill="#e3b04b" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M96 10 L108 10 L101 24 L111 24 L92 46 L97 30 L89 30 Z" fill="#e3b04b" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M86 84 L104 74 L96 70 L112 58" fill="none" stroke="${INK}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M86 84 L104 74 L96 70 L112 58" fill="none" stroke="#8fa8d8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M38 98 L36 112 M50 100 L50 114 M72 100 L72 114 M84 98 L86 112" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="60" cy="84" rx="32" ry="20" fill="#8fa8d8" stroke="${INK}" stroke-width="3"/>
+      <path d="M40 40 L36 22 L50 32 Z M80 40 L84 22 L70 32 Z" fill="#8fa8d8" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="60" cy="52" r="21" fill="#8fa8d8" stroke="${INK}" stroke-width="3"/>
+      <path d="M44 62 Q60 70 76 62" fill="#c9d6ef"/>
+      ${eyes([[51, 50], [69, 50]], 5, m === 'norm' ? 'smug' : m, { lid: '#8fa8d8' })}
+      <path d="M54 64 L56 68 L58 64 M62 64 L64 68 L66 64" fill="#fff" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>`;
+  };
+  DRAW.hakutaku = function (m) { // 白澤（九つの目を持つ聖獣）
+    const bodyEye = (x, y) => `<ellipse cx="${x}" cy="${y}" rx="5" ry="3.6" fill="${W}" stroke="${INK}" stroke-width="1.8"/><circle cx="${x}" cy="${y}" r="1.8" fill="#4a6fa5"/>`;
+    return `
+      <path d="M96 70 Q114 60 108 46 Q104 56 94 60" fill="#e9e4d8" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="38" y="94" width="10" height="18" rx="3" fill="#f4f1ea" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="80" y="94" width="10" height="18" rx="3" fill="#f4f1ea" stroke="${INK}" stroke-width="2.5"/>
+      <ellipse cx="66" cy="80" rx="38" ry="24" fill="#f4f1ea" stroke="${INK}" stroke-width="3"/>
+      ${bodyEye(62, 72)}${bodyEye(80, 76)}${bodyEye(70, 90)}
+      <path d="M22 34 Q14 18 22 10" fill="none" stroke="#c9a24a" stroke-width="4" stroke-linecap="round"/>
+      <path d="M44 32 Q50 16 44 8" fill="none" stroke="#c9a24a" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="34" cy="54" r="22" fill="#f4f1ea" stroke="${INK}" stroke-width="3"/>
+      <path d="M16 64 q6 14 18 12 q12 2 18 -12 q-8 6 -18 6 q-10 0 -18 -6 Z" fill="#dcd5c4" stroke="${INK}" stroke-width="2"/>
+      ${eyes([[27, 54], [42, 54]], 4.2, m, { lid: '#f4f1ea' })}
+      <ellipse cx="34" cy="42" rx="4.5" ry="3.4" fill="${W}" stroke="${INK}" stroke-width="1.8"/><circle cx="34" cy="42" r="1.8" fill="#4a6fa5"/>`;
+  };
+  DRAW.kirin = function (m) { // 麒麟
+    return `
+      <path d="M32 96 L30 114 M44 98 L44 116 M78 98 L78 116 M90 96 L92 114" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round"/>
+      <path d="M30 112 h6 M42 114 h6 M76 114 h6 M90 112 h6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+      <path d="M96 86 Q114 80 110 64 Q106 76 96 78" fill="#e0502e" stroke="${INK}" stroke-width="2"/>
+      <ellipse cx="60" cy="86" rx="38" ry="17" fill="#e3b04b" stroke="${INK}" stroke-width="3"/>
+      <path d="M36 82 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0 q6 -6 12 0" fill="none" stroke="#b98418" stroke-width="2"/>
+      <path d="M66 82 Q78 54 72 38 L58 42 Q64 62 52 78 Z" fill="#e3b04b" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M58 44 q-10 -4 -8 -14 q4 8 10 6 q-6 -10 2 -18 q2 10 8 10 q-2 -8 6 -12 q-2 10 4 14" fill="#e0502e" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M70 22 Q72 8 80 2" fill="none" stroke="#f6f0e1" stroke-width="3.5" stroke-linecap="round"/>
+      <ellipse cx="74" cy="32" rx="17" ry="12" fill="#e3b04b" stroke="${INK}" stroke-width="2.5"/>
+      ${eyes([[76, 29]], 3.8, m, { lid: '#e3b04b' })}
+      <path d="M86 36 q4 2 0 4" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
+  };
+
   // 茶碗（一服）
   function chawan() {
     return `<svg class="chawan-svg" viewBox="0 0 200 170" aria-hidden="true">
@@ -350,6 +453,8 @@
     const mini = !!opt.mini;
     const spots = mini ? '' : `
       <g class="spots">
+        <g class="spot" data-part="arms"><path d="M74 132 Q64 170 76 192" fill="none" stroke-width="12" stroke-linecap="round"/><path d="M126 132 Q136 170 124 192" fill="none" stroke-width="12" stroke-linecap="round"/></g>
+        <ellipse class="spot" data-part="torso" cx="100" cy="160" rx="30" ry="40"/>
         <circle class="spot" data-part="face" cx="100" cy="70" r="30"/>
         <ellipse class="spot" data-part="eyes" cx="100" cy="64" rx="44" ry="13"/>
         <g class="spot" data-part="ears"><circle cx="66" cy="72" r="11"/><circle cx="134" cy="72" r="11"/></g>
@@ -364,7 +469,8 @@
         <circle cx="140" cy="56" r="16"/><circle cx="58" cy="70" r="14"/><circle cx="112" cy="10" r="14"/>
       </g>`;
     const line = '#8d97c4';
-    return `<svg class="seated-svg${mini ? ' mini' : ''}" viewBox="0 0 200 240" aria-hidden="true">
+    return `<svg class="seated-svg${mini ? ' mini' : ''}${opt.glow ? ' glow' : ''}" viewBox="0 0 200 240" aria-hidden="true">
+      ${mini ? '' : '<ellipse class="ib-aura" cx="100" cy="150" rx="86" ry="96"/>'}
       <path d="M58 212 Q54 150 74 124 Q86 108 100 106 Q114 108 126 124 Q146 150 142 212 Z" fill="#2c3350" stroke="${line}" stroke-width="2.5"/>
       <path d="M26 222 Q40 194 100 198 Q160 194 174 222 Q160 236 100 234 Q40 236 26 222 Z" fill="#262c45" stroke="${line}" stroke-width="2.5"/>
       <path d="M74 140 Q66 176 76 194 M126 140 Q134 176 124 194" fill="none" stroke="${line}" stroke-width="2.5" stroke-linecap="round"/>

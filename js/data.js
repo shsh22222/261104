@@ -199,20 +199,57 @@
       practices: ['fuku'],
       honne: 'ずっと前から、この家にいたよ。きみが見ようとしてくれたから、やっと会えたね。',
       voice: { pitch: 1.7, rate: 1.0 }
-    }
+    },
+    // ---- 伝説の妖怪（熟達したときに現れる。条件は図鑑で公開） ----
+    { id: 'daitengu', kind: 'legend', name: '大天狗', yomi: 'だいてんぐ', origin: '天狗（山の修験者の姿の大妖怪）', title: 'ツッコミの達人',
+      distortion: '伝説：ツッコミの達人', cond: '1回の漫才で3つのツッコミに答え、信じ度を30ポイント以上下げる',
+      hint: '三つの問いで、ボケを山から下ろした者の前に。',
+      desc: '山で修行を積んだ大天狗。羽うちわのひとあおぎで、こり固まった考えを吹き飛ばす。ツッコミを極めた者の前に現れる。',
+      line: 'ほう、三つの問いで、ボケを山から下ろしたか。見事なツッコミであった。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'yatagarasu', kind: 'legend', name: '八咫烏', yomi: 'やたがらす', origin: '八咫烏（道を導く三本足の烏）', title: '注意の導き手',
+      distortion: '伝説：注意の導き手', cond: 'お囃子の聞き分けを最後まで3回',
+      hint: '音から音へ、注意を渡り歩いた者の前に。',
+      desc: '太陽を背負う三本足の烏。迷った者を、行くべき道へ導くと伝えられる。注意を自分で向け直せる者の前に現れる。',
+      line: '注意は、向けたいところへ向けられる。その道を、もう知っているね。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'baku', kind: 'legend', name: '獏', yomi: 'ばく', origin: '獏（悪い夢を食べる霊獣）', title: '夢を食べる者',
+      distortion: '伝説：夢を食べる者', cond: 'おやすみ席を最後まで3回',
+      hint: '夜ごと、体をゆるめて眠りについた者の枕元に。',
+      desc: '悪い夢を食べてくれる霊獣。夜ごと、体をゆるめて眠りにつく者の枕元に現れる。',
+      line: 'こわい夢は、もぐもぐ、ぜんぶもらっていくよ。ゆっくりおやすみ。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'amabie', kind: 'legend', name: 'アマビエ', yomi: 'あまびえ', origin: 'アマビエ（海から現れ、疫病よけを告げた妖怪）', title: '福を見つける名人',
+      distortion: '伝説：福を見つける名人', cond: '福日記を書いた日が7日（続けてでなくていい）',
+      hint: '七つの夜、福を書きとめた者の前に、海から。',
+      desc: '海から現れ、「わたしの姿を描いて見せよ」と告げたという妖怪。日々の福を書きとめる者の前に現れる。',
+      line: 'よいことを書きとめる手は、わざわいを遠ざける手。わたしの姿も、描いてくれる？', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'raiju', kind: 'legend', name: '雷獣', yomi: 'らいじゅう', origin: '雷獣（雷とともに天から落ちる獣）', title: '早押しの雷',
+      distortion: '伝説：早押しの雷', cond: '大喜利「妖怪当て」で10問すべて正解',
+      hint: '十の問いを、稲妻のように言い当てた者の前に。',
+      desc: '雷とともに天から駆け下りる獣。妖怪の正体を、稲妻のように見抜く者の前に現れる。',
+      line: 'ゴロゴロ……見抜いたな、ぜんぶ。その目、もう妖怪にはだまされない。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'hakutaku', kind: 'legend', name: '白澤', yomi: 'はくたく', origin: '白澤（すべての妖怪を知るという聖獣）', title: 'すべてを知る聖獣',
+      distortion: '伝説：すべてを知る聖獣', cond: '考え方のクセの妖怪12体すべてに出会う',
+      hint: '十二のクセ、すべてと顔を合わせた者の前に。',
+      desc: '体に九つの目を持ち、世のすべての妖怪の名と姿を知るという聖獣。十二の考え方のクセ、すべてと出会った者の前に現れる。',
+      line: 'クセの名を知る者は、クセに振り回されぬ。そなたは、もう十二の名を知っている。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'kirin', kind: 'legend', name: '麒麟', yomi: 'きりん', origin: '麒麟（よい世に現れるという霊獣）', title: '寄席の守り神',
+      distortion: '伝説：寄席の守り神', cond: 'ほかの伝説6体すべてに出会う',
+      hint: '六つの伝説が集うとき、よい世のしるしとして。',
+      desc: 'よい世に現れるとされる霊獣。ツッコみ、眺め、福を見つけ、学んできた者の寄席を、静かに守る。',
+      line: 'ここまで、よく通ってくださいました。この寄席は、もうあなたのものです。', kuchiguse: [], keywords: [], sign: '' }
   ];
 
   // ---------- ながめ席（ぼんやり不安・止まらない思考） ----------
   const NAGAME = {
     states: [
-      { id: 'guruguru', label: 'ぐるぐる考えが止まらない', yokai: 'nurarihyon', rec: ['toro', 'geso', 'ohayashi'], omakase: ['toro', 'hara'], omakaseName: 'おまかせ：流して、ハラへ' },
-      { id: 'moya', label: '理由のわからない不安', yokai: 'enenra', rec: ['hara', 'ippuku', 'toro'], omakase: ['ippuku', 'hara'], omakaseName: 'おまかせ：一服して、ハラへ' },
-      { id: 'zawa', label: '頭の中がざわざわうるさい', yokai: 'nurarihyon', rec: ['ohayashi', 'ma', 'hara'], omakase: ['ohayashi', 'ma'], omakaseName: 'おまかせ：聞き分けて、間をはかる' },
-      { id: 'kata', label: '体がこわばっている', yokai: 'enenra', rec: ['gyuto', 'hara', 'ippuku'], omakase: ['gyuto', 'hara'], omakaseName: 'おまかせ：ゆるめて、ハラへ' },
-      { id: 'nemuri', label: '寝る前に考えてしまう', yokai: 'nurarihyon', rec: ['geso', 'gyuto', 'hara'], omakase: ['gyuto', 'hara'], omakaseName: 'おやすみ席', voice: true }
+      { id: 'guruguru', label: 'ぐるぐる考えが止まらない', yokai: 'nurarihyon', rec: ['toro', 'imakoko', 'geso'], omakase: ['toro', 'imakoko'], omakaseName: 'おまかせ：流して、いま・ここへ' },
+      { id: 'moya', label: '理由のわからない不安', yokai: 'enenra', rec: ['innerbody', 'hara', 'ippuku'], omakase: ['ippuku', 'innerbody'], omakaseName: 'おまかせ：一服して、内側へ' },
+      { id: 'zawa', label: '頭の中がざわざわうるさい', yokai: 'nurarihyon', rec: ['elevator', 'ohayashi', 'ma'], omakase: ['ohayashi', 'elevator'], omakaseName: 'おまかせ：聞き分けて、ハラへ下りる' },
+      { id: 'kata', label: '体がこわばっている', yokai: 'enenra', rec: ['gyuto', 'innerbody', 'hara'], omakase: ['gyuto', 'hara'], omakaseName: 'おまかせ：ゆるめて、ハラへ' },
+      { id: 'nemuri', label: '寝る前に考えてしまう', yokai: 'nurarihyon', rec: ['geso', 'gyuto', 'elevator'], omakase: ['gyuto', 'elevator'], omakaseName: 'おやすみ席', voice: true }
     ],
     groups: [
       { id: 'nagasu', label: '流す', desc: '考えを、追いかけずに見送る' },
+      { id: 'iki', label: '息といのち', desc: 'いま・ここの息と、体の内側へ' },
       { id: 'modoru', label: '体に戻る', desc: '頭のおしゃべりから、いまの感覚へ' },
       { id: 'sodateru', label: '注意を育てる', desc: '注意は、自分で向け直せる' }
     ],
@@ -237,8 +274,33 @@
         tech: '漸進的筋弛緩法（リラクセーション法）' },
       { id: 'ohayashi', group: 'sodateru', name: 'お囃子の聞き分け', min: '約2分', when: '注意が考えに持っていかれやすいとき',
         desc: '太鼓、鉦（かね）、三味線、笛。4つの音を一つずつ聞き分け、すばやく切りかえ、最後に全部をいっしょに聞きます。注意は、自分で向け直せます。',
-        tech: 'メタ認知療法の注意訓練（ATT）', sound: true }
+        tech: 'メタ認知療法の注意訓練（ATT）', sound: true },
+      { id: 'innerbody', group: 'iki', name: 'インナーボディ', min: '約3分', when: '頭ばかりで考えて、体を忘れているとき',
+        desc: '手の内側の「生きている感じ」から始めて、腕、足、胴体へ広げ、最後は体全体をひとつのいのちとして感じます。何も感じなくても、それで正解です。',
+        tech: 'エックハルト・トールが紹介している「インナーボディ（内なる体）」を参考にしたアレンジ' },
+      { id: 'imakoko', group: 'iki', name: '今ここ呼吸', min: '約2分', when: '過去や未来の考えに引っぱられているとき',
+        desc: '吸うときに「いま」、吐くときに「ここ」。息と言葉をそろえて10呼吸。考えにそれたら「もどった」をタップ。戻れた回数を数えます。',
+        tech: 'ネドじゅんが紹介している「今ここ呼吸」を参考にしたアレンジ、数息観' },
+      { id: 'elevator', group: 'iki', name: 'エレベーター呼吸', min: '約2分', when: '頭に血がのぼって、おしゃべりが止まらないとき',
+        desc: '吐く息にのせて、意識のエレベーターを頭から一階ずつ下ろします。のど、胸、みぞおち、おなか、そしてハラ（下腹）。ハラ階で、しばらくとどまります。',
+        tech: 'ネドじゅんが紹介している「エレベーター呼吸」を参考にしたアレンジ' }
     ],
+    innerbody: [
+      { lit: 'hands', title: '手の内側', text: '両手の内側に、注意を向けます。手が「生きている」感じ。ジンジン、ぽかぽか、ほのかな振動。何も感じなくても大丈夫。', sec: 30 },
+      { lit: 'arms', title: '腕へ', text: 'その感じを、手首から腕へと広げていきます。', sec: 20 },
+      { lit: 'feet', title: '足へ', text: '足の裏から、すね、ひざへ。足の内側の、生きている感じ。', sec: 25 },
+      { lit: 'torso', title: '胴体へ', text: 'お腹、胸、背中の内側へ。呼吸とともに、内側がかすかに動いています。', sec: 25 },
+      { lit: 'whole', title: '全身', text: '体全体を、ひとつの「いのちの場」として感じます。外の形ではなく、内側から。', sec: 30 },
+      { lit: 'open', title: '内側に根をおろして', text: '内側の感じを少し残したまま、目を開けて、まわりを眺めます。考えが浮かんでも、根っこは内側に。', sec: 25 }
+    ],
+    imakoko: { breaths: 10, inhale: 4, exhale: 6 },
+    elevator: {
+      inhale: 4, exhale: 6, stay: 3,
+      floors: [
+        { f: '5F', name: '頭', y: 66 }, { f: '4F', name: 'のど', y: 104 }, { f: '3F', name: '胸', y: 134 },
+        { f: '2F', name: 'みぞおち', y: 152 }, { f: '1F', name: 'おなか', y: 166 }, { f: 'B1', name: 'ハラ', y: 180 }
+      ]
+    },
     ippuku: [
       { part: 'hold', title: '器を持つ', text: '両手で器を包みます。重さと、あたたかさ（つめたさ）を、手のひらで感じます。', sec: 20 },
       { part: 'kaori', title: '香り', text: '器を顔に近づけて、香りをゆっくり吸いこみます。香りがなければ、湯気や空気の感じを。', sec: 15 },
@@ -470,7 +532,16 @@
     { min: 500, name: '名人' }
   ];
 
-  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3 };
+  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3, game: 5 };
+
+  // ---------- 大喜利（ゲームモード） ----------
+  const GAME = {
+    quizQuestions: 10, quizTsukkomi: 3, quizSec: 12,
+    quizRanks: [{ min: 0, name: '前座' }, { min: 900, name: '二ツ目' }, { min: 1700, name: '真打' }, { min: 2500, name: '名人' }],
+    hiroiSec: 45,
+    ima: ['足の裏', '息', '風の音', '手のあたたかさ', 'お茶の香り', '空の色', '鳥の声', '背中の重み', '光', '鼻を通る空気', '椅子の感触', '遠くの音', '肩の力', '心臓の音', '雨の音'],
+    kangae: ['明日の会議', 'あの一言', 'どうせ無理', '〜すべき', 'あの人に比べて', 'もしも…', '昨日の失敗', '嫌われたかも', '完璧にしなきゃ', 'いつもこうだ', '将来のお金', '返信まだ？', '終わったら…', 'あのとき言えば']
+  };
 
   // ---------- 福さがし（注意を、よいことに向ける） ----------
   const FUKU = {
@@ -480,6 +551,15 @@
       '光がきれいなところ', 'ほっとする場所', '小さな花や緑', 'ありがとうと言えること'
     ],
     examples: ['ごはんがおいしかった', '空がきれいだった', '誰かと笑った', 'ちゃんと休めた', 'お湯があたたかかった', 'やることをひとつ終えた', '好きな曲を聴いた', 'ねこ（いきもの）を見た'],
+    // 夜の福日記の「レンズ」（思い出す手がかり）。1行目＝もの・感覚（今日のお題）、2行目＝人、3行目＝自分
+    lensHito: ['ありがとうと言えること', '誰かのやさしさ', '笑った瞬間', '話せてよかった人', '誰かのがんばり', 'ちいさな親切'],
+    lensJibun: ['自分ができたこと', 'がんばったこと', 'ちゃんと休めたこと', '昨日より少しよかったこと', '自分をほめるなら', '体が気持ちよかった瞬間'],
+    rewind: {
+      asa: { label: '朝', q: ['起きて最初に見たものは？', '朝ごはんや飲みものは？', '外の天気や光は？'] },
+      hiru: { label: '昼', q: ['誰と話した？', 'お昼に何を食べた？', 'ほっとした瞬間は？'] },
+      yugata: { label: '夕方', q: ['帰り道や窓の外で見たものは？', '空の色は？', 'ひと区切りついたことは？'] },
+      yoru: { label: '夜', q: ['お風呂やふとんは気持ちよかった？', '夜に食べたもの・飲んだものは？', '今日の自分に、ひとことかけるなら？'] }
+    },
     zashikiLines: [
       'ねえ、いま、いいことあったよ。',
       '見ようとしてくれたから、ここにいるよ。',
@@ -549,7 +629,7 @@
 
   window.KY_DATA = {
     YOKAI, NAGAME, TSUKKOMI, TELOPS, END_TELOP, EMOTIONS, EXAMPLE_THOUGHTS, STEMS, ACTIONS, CATEGORIES, FORTUNES, KYO_ACTION,
-    OMIKUJI_LINES, RANKS, XP, FUKU, TIPS, RISK_WORDS, RISK_REGEX, HOTLINES, SAMPLE,
+    OMIKUJI_LINES, RANKS, XP, FUKU, GAME, TIPS, RISK_WORDS, RISK_REGEX, HOTLINES, SAMPLE,
     yokaiById: Object.fromEntries(YOKAI.map(y => [y.id, y])),
     tsukkomiById: Object.fromEntries(TSUKKOMI.map(t => [t.id, t])),
     emotionById: Object.fromEntries(EMOTIONS.map(e => [e.id, e]))

@@ -39,7 +39,9 @@
       netaSeen: {},
       xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
       nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 },
-      fuku: { finds: [], goods: [], days: {}, savors: 0 }
+      fuku: { finds: [], goods: [], days: {}, savors: 0 },
+      game: { quiz: { plays: 0, best: 0, perfect: 0 }, hiroi: { plays: 0, best: 0 } },
+      legends: {}, golden: {}
     };
   }
   let S = fresh();
@@ -53,6 +55,7 @@
         S.profile = Object.assign(fresh().profile, p.profile || {});
         S.nagame = Object.assign(fresh().nagame, p.nagame || {});
         S.fuku = Object.assign(fresh().fuku, p.fuku || {});
+        S.game = Object.assign(fresh().game, p.game || {});
       }
     } catch (e) { storageOK = false; }
   }
@@ -163,6 +166,19 @@
       const t = c.currentTime + 0.02;
       [[528, 0.16, 4.5], [1457, 0.05, 2.6], [2851, 0.025, 1.4], [532, 0.06, 4.0]].forEach(([f, g, d]) => this.tone(c, t, f, f, g, d));
     },
+    elev() { // エレベーターの到着音（ポーン）
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.01;
+      this.tone(c, t, 784, 784, 0.12, 0.9);
+      this.tone(c, t + 0.35, 659, 659, 0.12, 1.2);
+    },
+    legend() { // 伝説の出現：遠雷と、のぼっていく鈴
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.02;
+      this.burst(c, t, 120, 0.7, 0.6, 1.6, 'lowpass');
+      this.tone(c, t, 70, 40, 0.5, 1.4);
+      [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => this.tone(c, t + 0.7 + i * 0.11, f, f, 0.16, 1.1));
+    },
     plop() { // 灯籠を水に置く音
       const c = this.c(); if (!c) return;
       const t = c.currentTime + 0.01;
@@ -197,7 +213,12 @@
       try { const t = this.ctx.currentTime; r.g.gain.setValueAtTime(r.g.gain.value, t); r.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8); r.s.stop(t + 0.9); } catch (e) { /* noop */ }
     }
   };
-  function buzz(p) { try { if (S.profile.sound && navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 振動なし */ } }
+  function buzz(p) {
+    try {
+      const touched = !navigator.userActivation || navigator.userActivation.hasBeenActive; // 一度もタップしていないうちは振動しない
+      if (S.profile.sound && navigator.vibrate && touched) navigator.vibrate(p);
+    } catch (e) { /* 振動なし */ }
+  }
 
   // ============ 声（Web Speech API） ============
   const Voice = {
@@ -278,8 +299,7 @@
   }
   function closeAllSheets() { while (sheets.length) closeSheet(); }
   function overlayOpen() {
-    const a = document.getElementById('stage-root'), b = document.getElementById('calm-root');
-    return !!((a && a.childElementCount) || (b && b.childElementCount));
+    return ['stage-root', 'calm-root', 'game-root'].some(id => { const el = document.getElementById(id); return !!(el && el.childElementCount); });
   }
   function confirmSheet(msg, yesLabel, onYes) {
     openSheet(`<div class="confirm"><p class="confirm-msg">${esc(msg)}</p>
@@ -353,15 +373,19 @@
     v.innerHTML = VIEWS[name]();
     v.dataset.view = name;
     $$('[data-tab]').forEach(t => {
-      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta');
+      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'omikuji' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta');
       t.classList.toggle('is-active', on);
       if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     });
-    if (!keepScroll) window.scrollTo(0, 0);
+    if (!keepScroll) {
+      window.scrollTo(0, 0);
+      v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); // 画面の切りかえは、ごく短いフェード
+    }
     if (pendingRank) {
       const r = pendingRank; pendingRank = null;
       setTimeout(() => { if (!overlayOpen()) celebrateRank(r); else pendingRank = r; }, 600);
     }
+    queueCelebrations();
   }
   function rerender() { render(current, true); }
   function go(name) {
@@ -424,6 +448,8 @@
       </div>
     </section>
 
+    ${timeCard()}
+
     <section class="bangumi" aria-labelledby="bangumi-h">
       <h2 id="bangumi-h" class="sec-title"><span>本日の番組</span></h2>
       <ol class="program">
@@ -443,7 +469,7 @@
         <li><a class="act act-fuku" href="#fuku">
           <span class="act-no">三</span>
           <span class="act-body"><span class="act-name">福さがし${CORE.fukuOdai ? ` <em class="badge badge-fuku">お題：${esc(CORE.fukuOdai())}</em>` : ''}</span>
-          <span class="act-desc">注意は、探したものを見つける。今日のお題と、小さなよいことを</span></span>
+          <span class="act-desc">一日を思い出して、よかったことを3行。夜の福日記と、朝のお題</span></span>
           <span class="act-art">${A.yokai('zashiki', 'happy')}</span>
         </a></li>
         <li><a class="act" href="#omikuji">
@@ -455,12 +481,18 @@
         <li class="nakairi"><button class="nakairi-btn" data-act="openSos">
           <span class="nakairi-k">仲入り</span><span class="nakairi-t">休憩所 ― 呼吸・グラウンディング・相談先</span>
         </button></li>
-        <li><a class="act act-sub" href="#zukan">
+        <li><a class="act act-ogiri" href="#ogiri">
           <span class="act-no">五</span>
-          <span class="act-body"><span class="act-name">妖怪図鑑</span><span class="act-desc">${D.YOKAI.length}の妖怪（考え方のクセと心の状態）となかよくなる</span></span>
+          <span class="act-body"><span class="act-name">大喜利<em class="badge badge-game">ゲーム</em></span>
+          <span class="act-desc">妖怪当て早押しと、いまひろい。遊びながら、ツッコミと注意をきたえる</span></span>
+          <span class="act-art">${A.yokai('raiju', 'happy', { silhouette: !(S.legends && S.legends.raiju), cls: S.legends && S.legends.raiju ? 'is-legend' : '' })}</span>
+        </a></li>
+        <li><a class="act act-sub" href="#zukan">
+          <span class="act-no">六</span>
+          <span class="act-body"><span class="act-name">妖怪図鑑</span><span class="act-desc">${D.YOKAI.length}の妖怪となかよくなる。上手にできたときには、伝説の妖怪が</span></span>
         </a></li>
         <li><a class="act act-sub" href="#neta">
-          <span class="act-no">六</span>
+          <span class="act-no">七</span>
           <span class="act-body"><span class="act-name">ネタ帳</span><span class="act-desc">これまでの漫才を、もう一度上演する</span></span>
         </a></li>
       </ol>
@@ -470,6 +502,33 @@
     ${S.scripts.length === 0 ? `<section class="first-show"><p>はじめての方は、まず見本の漫才をどうぞ。1分で終わります。</p><button class="btn btn-ghost" data-act="playSample">見本の漫才を観る</button></section>` : ''}
     `;
   };
+
+  // 時間帯で変わる入口（朝はお題、夜は福日記とおやすみ席）
+  function timeCard() {
+    const h = new Date().getHours();
+    if (h >= 4 && h < 11) {
+      const odai = CORE.fukuOdai ? CORE.fukuOdai() : '';
+      return `<section class="time-card time-morning" aria-label="朝の入口">
+        <p class="time-k">おはようございます</p>
+        <p class="time-t">今日のお題は「${esc(odai)}」</p>
+        <p class="time-d">頭の片すみに置いておくと、一日のうちに目に飛びこんできます。夜の福日記の手がかりに。</p>
+        <a class="btn btn-small" href="#fuku">お題を見る</a>
+      </section>`;
+    }
+    if (h >= 18 || h < 4) {
+      const wrote = ((S.fuku && S.fuku.goods) || []).some(g => ymd(new Date(g.date)) === today());
+      return `<section class="time-card time-night" aria-label="夜の入口">
+        <p class="time-k">今夜の締め</p>
+        <p class="time-t">${wrote ? '福日記は書けました。あとは、眠りの席へ' : '福日記を3行書いて、おやすみ席へ'}</p>
+        <div class="time-btns">
+          ${wrote ? '' : '<a class="btn btn-small btn-night-primary" href="#fuku">福日記を書く</a>'}
+          <button class="btn btn-small${wrote ? ' btn-night-primary' : ''}" data-act="toBed">おやすみ席</button>
+        </div>
+      </section>`;
+    }
+    return '';
+  }
+  ACT.toBed = () => { if (CORE.openOmakase) CORE.openOmakase('nemuri'); else go('nagame'); };
 
   ACT.playSample = () => startPerformance(D.SAMPLE, {});
   ACT.openSos = () => openSos();
@@ -1129,22 +1188,110 @@
     startPerformance(sc, {});
   };
 
+  // ============ 伝説の妖怪と金色の姿（熟達したときに現れる。条件はすべて公開） ============
+  const LEGENDS = D.YOKAI.filter(y => y.kind === 'legend');
+  const nagameSessions = () => ((S.nagame && S.nagame.sessions) || []);
+  const nagameParts = () => nagameSessions().reduce((a, s) => a.concat(s.parts && s.parts.length ? s.parts : [s]), []);
+  const LEG_COND = {
+    daitengu: () => ({ cur: S.scripts.some(sc => (sc.tk || []).length >= 3 && sc.beliefBefore - sc.beliefAfter >= 30) ? 1 : 0, max: 1, unit: '回' }),
+    yatagarasu: () => ({ cur: Math.min(3, nagameParts().filter(p => p.practice === 'ohayashi' && (p.done || (p.steps || 0) >= 6)).length), max: 3, unit: '回' }),
+    baku: () => ({ cur: Math.min(3, nagameSessions().filter(s => s.practice === 'set' && s.set === 'nemuri' && s.parts && s.parts.length >= 2 && s.parts.every(p => p.done)).length), max: 3, unit: '回' }),
+    amabie: () => { const days = new Set(((S.fuku && S.fuku.goods) || []).map(g => ymd(new Date(g.date)))); return { cur: Math.min(7, days.size), max: 7, unit: '日' }; },
+    raiju: () => ({ cur: S.game && S.game.quiz && S.game.quiz.perfect ? 1 : 0, max: 1, unit: '回' }),
+    hakutaku: () => ({ cur: DISTORTIONS.filter(y => S.yokai[y.id] && S.yokai[y.id].met > 0).length, max: DISTORTIONS.length, unit: '体' }),
+    kirin: () => ({ cur: LEGENDS.filter(y => y.id !== 'kirin' && S.legends && S.legends[y.id]).length, max: LEGENDS.length - 1, unit: '体' })
+  };
+  const isGolden = id => !!(S.golden && S.golden[id]);
+  function detectNew() {
+    if (!S.legends) S.legends = {};
+    if (!S.golden) S.golden = {};
+    const out = [];
+    D.YOKAI.filter(y => y.kind !== 'legend').forEach(y => {
+      const r = S.yokai[y.id];
+      if (r && r.friend >= 5 && !S.golden[y.id]) { S.golden[y.id] = new Date().toISOString(); out.push({ type: 'golden', id: y.id }); }
+    });
+    LEGENDS.forEach(y => { // 麒麟は最後に判定（ほかの伝説がそろったら）
+      if (S.legends[y.id]) return;
+      const c = LEG_COND[y.id]();
+      if (c.cur >= c.max) {
+        S.legends[y.id] = new Date().toISOString();
+        const r = S.yokai[y.id] || (S.yokai[y.id] = { met: 0, friend: 0 });
+        r.met = Math.max(1, r.met);
+        out.push({ type: 'legend', id: y.id });
+      }
+    });
+    if (out.length) save();
+    return out;
+  }
+  const celebQ = [];
+  let celebBusy = false;
+  function queueCelebrations() {
+    const news = detectNew();
+    if (!news.length) return;
+    celebQ.push(...news);
+    setTimeout(runCeleb, 900);
+  }
+  function runCeleb() {
+    if (celebBusy || !celebQ.length) return;
+    if (overlayOpen()) { setTimeout(runCeleb, 1500); return; }
+    celebBusy = true;
+    const it = celebQ.shift();
+    const y = D.yokaiById[it.id];
+    const legend = it.type === 'legend';
+    if (legend) Sfx.legend(); else Sfx.chime();
+    buzz(legend ? [40, 60, 40, 60, 120] : [30, 40, 30]);
+    $('#legend-root').innerHTML = `<div class="legend-ov${legend ? '' : ' is-golden-ov'}" role="dialog" aria-modal="true" aria-label="${legend ? '伝説の妖怪' : '金色の姿'}">
+      <div class="legend-flash" aria-hidden="true"></div>
+      <div class="legend-rays" aria-hidden="true"></div>
+      <div class="legend-body">
+        <p class="legend-k">${legend ? '伝説の妖怪が、あらわれた！' : 'なかよし度が最大に！'}</p>
+        <div class="legend-art">${A.yokai(y.id, 'happy', { cls: legend ? 'is-legend' : 'is-golden' })}</div>
+        ${legend ? `<p class="legend-title">${esc(y.title)}</p>` : ''}
+        <h2 class="legend-name">${legend ? esc(y.name) : esc(y.name) + '<small>金色の姿</small>'}</h2>
+        <p class="legend-line">「${esc(legend ? y.line : y.honne)}」</p>
+        <p class="legend-cond">${legend ? '出現の条件：' + esc(y.cond) : 'なかよし度5になった妖怪は、金色にかがやきます。'}</p>
+        <button class="btn btn-primary" data-act="legendOk">図鑑に記録する</button>
+      </div>
+    </div>`;
+    document.body.classList.add('no-scroll');
+    setTimeout(() => { const b = $('#legend-root .btn'); if (b) b.focus({ preventScroll: true }); }, 400);
+  }
+  ACT.legendOk = () => {
+    $('#legend-root').innerHTML = '';
+    celebBusy = false;
+    if (!sheets.length && !overlayOpen()) document.body.classList.remove('no-scroll');
+    if (celebQ.length) setTimeout(runCeleb, 500);
+    else if (current === 'zukan') rerender();
+  };
+
   // ============ 妖怪図鑑 ============
   VIEWS.zukan = function () {
     const card = y => {
       const i = D.YOKAI.indexOf(y);
       const r = S.yokai[y.id];
       const known = !!(r && r.met > 0);
-      return `<button class="zk-card${known ? '' : ' unknown'}${y.kind === 'state' ? ' state' : ''}" data-act="zukanOpen" data-id="${y.id}">
-        <span class="zk-no">其の${kanjiNum(i + 1)}</span>
-        ${A.yokai(y.id, known && r.friend >= 3 ? 'happy' : 'norm', { silhouette: !known })}
+      const legend = y.kind === 'legend';
+      const gold = !legend && isGolden(y.id);
+      const c = legend ? LEG_COND[y.id]() : null;
+      return `<button class="zk-card${known ? '' : ' unknown'}${y.kind === 'state' ? ' state' : ''}${legend ? ' legend' : ''}${gold ? ' golden' : ''}" data-act="zukanOpen" data-id="${y.id}">
+        <span class="zk-no">${legend ? '伝説' : '其の' + kanjiNum(i + 1)}</span>
+        ${A.yokai(y.id, known && (legend || r.friend >= 3) ? 'happy' : 'norm', { silhouette: !known, cls: gold ? 'is-golden' : legend && known ? 'is-legend' : '' })}
         <span class="zk-name">${known ? esc(y.name) : '？？？'}</span>
-        <span class="zk-dist">${esc(y.distortion)}</span>
-        ${known ? hearts(r.friend) : '<span class="zk-hint">未発見</span>'}
+        <span class="zk-dist">${esc(legend ? y.title : y.distortion)}</span>
+        ${legend ? (known ? '<span class="zk-hint gold">出会った</span>' : `<span class="zk-hint">${c.cur} / ${c.max}${c.unit}</span>`)
+          : known ? hearts(r.friend) : '<span class="zk-hint">未発見</span>'}
       </button>`;
     };
-    return `<header class="page-head"><h1 class="page-title">妖怪図鑑</h1><p class="page-sub">出会った妖怪 <strong>${metCount()}</strong> / ${D.YOKAI.length}</p></header>
-    <p class="page-lead">妖怪の正体は、だれにでもある「考え方のクセ」と「心の状態」。退治はしません。ツッコんだり眺めたりするたびに、なかよくなっていきます。</p>
+    const total = D.YOKAI.length;
+    const met = metCount();
+    const goldN = D.YOKAI.filter(y => y.kind !== 'legend' && isGolden(y.id)).length;
+    const legN = LEGENDS.filter(y => S.legends && S.legends[y.id]).length;
+    return `<header class="page-head"><h1 class="page-title">妖怪図鑑</h1><p class="page-sub">出会った妖怪 <strong>${met}</strong> / ${total}</p></header>
+    <section class="zk-progress" aria-label="図鑑の完成度">
+      <div class="meter" role="progressbar" aria-valuenow="${met}" aria-valuemin="0" aria-valuemax="${total}" aria-label="図鑑の完成度"><i style="width:${met / total * 100}%"></i></div>
+      <dl class="zk-stats"><div><dt>伝説</dt><dd>${legN}<small>/${LEGENDS.length}</small></dd></div><div><dt>金色の姿</dt><dd>${goldN}</dd></div><div><dt>なかよし度3以上</dt><dd>${D.YOKAI.filter(y => S.yokai[y.id] && S.yokai[y.id].friend >= 3 && y.kind !== 'legend').length}</dd></div></dl>
+    </section>
+    <p class="page-lead">妖怪の正体は、だれにでもある「考え方のクセ」と「心の状態」。退治はしません。ツッコんだり眺めたりするたびに、なかよくなります。なかよし度が5になると<strong>金色の姿</strong>に。上手にできたときには、<strong>伝説の妖怪</strong>が現れます。</p>
     <section aria-labelledby="zk-d-h"><h2 id="zk-d-h" class="sec-title"><span>考え方のクセ</span></h2>
       <p class="zk-shelf-note">妖怪漫才でツッコむと、静かになる妖怪たち。</p>
       <div class="zk-grid">${DISTORTIONS.map(card).join('')}</div></section>
@@ -1153,22 +1300,41 @@
       <div class="zk-grid">${STATES.map(card).join('')}</div></section>
     <section aria-labelledby="zk-f-h"><h2 id="zk-f-h" class="sec-title"><span>福をよぶ</span></h2>
       <p class="zk-shelf-note">見ようとする人にだけ姿を見せる妖怪。福さがしで出会えます。</p>
-      <div class="zk-grid">${FUKUY.map(card).join('')}</div></section>`;
+      <div class="zk-grid">${FUKUY.map(card).join('')}</div></section>
+    <section class="zk-legend-shelf" aria-labelledby="zk-l-h"><h2 id="zk-l-h" class="sec-title"><span>伝説</span></h2>
+      <p class="zk-shelf-note">上手にできたとき（熟達）にだけ現れる霊獣たち。出現の条件は、すべてここに書いてあります。くじや課金では出ません。</p>
+      <div class="zk-grid">${LEGENDS.map(card).join('')}</div></section>`;
   };
   ACT.zukanOpen = el => {
     const y = D.yokaiById[el.dataset.id];
     const r = S.yokai[y.id] || { met: 0, friend: 0 };
     const known = r.met > 0;
+    if (y.kind === 'legend') {
+      const c = LEG_COND[y.id]();
+      openSheet(`<div class="zk-detail">
+        <div class="zk-detail-art legend-bg">${A.yokai(y.id, 'happy', { silhouette: !known, cls: known ? 'is-legend' : '' })}</div>
+        <p class="zk-detail-dist">伝説・${esc(y.title)}</p>
+        <h2 class="zk-detail-name">${known ? esc(y.name) : '？？？'}</h2>
+        <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : esc(y.hint)}</p>
+        ${known ? `<p>${esc(y.desc)}</p><blockquote class="honne-q">「${esc(y.line)}」</blockquote>` : ''}
+        <h3>出現の条件</h3>
+        <p class="legend-cond-card">${esc(y.cond)}</p>
+        <div class="meter" role="progressbar" aria-valuenow="${c.cur}" aria-valuemin="0" aria-valuemax="${c.max}" aria-label="条件の進み具合"><i style="width:${c.cur / c.max * 100}%"></i></div>
+        <p class="muted small">いま ${c.cur} / ${c.max}${c.unit}${known && S.legends && S.legends[y.id] ? `・${fmtMD(S.legends[y.id])}に出会いました` : ''}</p>
+      </div>`, { label: known ? y.name : '未発見の伝説' });
+      return;
+    }
+    const gold = isGolden(y.id);
     openSheet(`<div class="zk-detail">
-      <div class="zk-detail-art">${A.yokai(y.id, known ? (r.friend >= 3 ? 'happy' : 'smug') : 'norm', { silhouette: !known })}</div>
-      <p class="zk-detail-dist">${esc(y.distortion)}</p>
+      <div class="zk-detail-art">${A.yokai(y.id, known ? (r.friend >= 3 ? 'happy' : 'smug') : 'norm', { silhouette: !known, cls: gold ? 'is-golden' : '' })}</div>
+      <p class="zk-detail-dist">${esc(y.distortion)}${gold ? '・金色の姿' : ''}</p>
       <h2 class="zk-detail-name">${known ? esc(y.name) : '？？？'}</h2>
       <p class="zk-detail-origin">${known ? '元になった伝承：' + esc(y.origin) : y.kind === 'state' ? 'まだ出会っていません。ながめ席で眺めると、正体がわかります。' : y.kind === 'fuku' ? 'まだ出会っていません。福さがしで、小さなよいことを見つけると会えます。' : 'まだ出会っていません。漫才で鑑定すると、正体がわかります。'}</p>
       <p>${esc(y.desc)}</p>
       <h3>口ぐせ</h3><ul class="kc">${y.kuchiguse.map(k => `<li>「${esc(k)}」</li>`).join('')}</ul>
       <h3>見分け方</h3><p>${esc(y.sign)}</p>
       ${y.kind === 'fuku'
-        ? `<h3>出会える演目</h3><ul class="weak"><li><b>福さがし</b><span>今日のお題・今日の福・味わう</span></li></ul>
+        ? `<h3>出会える演目</h3><ul class="weak"><li><b>福さがし</b><span>夜の福日記・朝のお題・味わう</span></li></ul>
            <a class="btn btn-ghost" href="#fuku">福さがしへ</a>`
         : y.kind === 'state'
         ? `<h3>静かになる演目（ながめ席）</h3><ul class="weak">${y.practices.map(pid => { const P = D.NAGAME.practices.find(p => p.id === pid); return `<li><b>${esc(P.name)}</b><span>${esc(P.when)}</span></li>`; }).join('')}</ul>
@@ -1176,7 +1342,7 @@
         : `<h3>弱点のツッコミ</h3><ul class="weak">${y.weak.map(t => { const T = D.tsukkomiById[t]; return `<li><b>${esc(tkLine(T))}</b><span>${esc(T.tech)}</span></li>`; }).join('')}</ul>
            <h3>持ちネタ（${NT.LIST.filter(n => n.y === y.id).length}本）</h3>
            <ul class="pick-list">${NT.LIST.filter(n => n.y === y.id).map(n => `<li><button class="pick-item${seenOf(n.id) ? ' seen' : ''}" data-act="libOpen" data-id="${n.id}"><span>「${esc(n.thought)}」</span><small>${esc(NT.domainById[n.d].label)}${seenOf(n.id) ? '・観た' : ''}</small></button></li>`).join('')}</ul>`}
-      <h3>なかよし度</h3><div class="zk-friend">${hearts(r.friend)}<span class="muted">出会った回数 ${r.met}回</span></div>
+      <h3>なかよし度</h3><div class="zk-friend">${hearts(r.friend)}<span class="muted">出会った回数 ${r.met}回${gold ? '' : r.friend >= 3 ? '・5で金色の姿に' : ''}</span></div>
       <h3>本音</h3>${r.friend >= 3 ? `<blockquote class="honne-q">${esc(y.honne)}</blockquote>` : `<p class="locked">なかよし度が3になると、本音が聞けます（あと${3 - r.friend}）</p>`}
     </div>`, { label: known ? y.name : '未発見の妖怪' });
   };
@@ -1713,7 +1879,7 @@
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
     confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.draft = null; MZ = null;
+      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.draft = null; MZ = null;
       save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
   };
