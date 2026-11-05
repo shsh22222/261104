@@ -41,7 +41,8 @@
       nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 },
       fuku: { finds: [], goods: [], days: {}, savors: 0 },
       game: { quiz: { plays: 0, best: 0, perfect: 0, levelBest: {} }, hiroi: { plays: 0, best: 0, bestNeutral: 0 }, sort: { plays: 0, best: 0 }, run: { plays: 0, best: 0, clears: 0, perfect: 0, daily: {} }, eye: {} },
-      legends: {}, golden: {}
+      legends: {}, golden: {},
+      hanashi: { stories: [], okashi: [], draft: null }
     };
   }
   let S = fresh();
@@ -56,6 +57,7 @@
         S.nagame = Object.assign(fresh().nagame, p.nagame || {});
         S.fuku = Object.assign(fresh().fuku, p.fuku || {});
         S.game = Object.assign(fresh().game, p.game || {});
+        S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {});
       }
     } catch (e) { storageOK = false; }
   }
@@ -188,6 +190,10 @@
       this.tone(c, t, f, f, 0.14, 0.14, 'triangle');
       if (n && n % 5 === 0) this.tone(c, t + 0.08, f * 1.5, f * 1.5, 0.1, 0.25);
     },
+    blip(f) { // ピコピコ（文字送りの電子音）
+      const c = this.c(); if (!c) return;
+      this.tone(c, c.currentTime + 0.005, f || 660, f || 660, 0.06, 0.05, 'square');
+    },
     plop() { // 灯籠を水に置く音
       const c = this.c(); if (!c) return;
       const t = c.currentTime + 0.01;
@@ -308,7 +314,7 @@
   }
   function closeAllSheets() { while (sheets.length) closeSheet(); }
   function overlayOpen() {
-    return ['stage-root', 'calm-root', 'game-root'].some(id => { const el = document.getElementById(id); return !!(el && el.childElementCount); });
+    return ['stage-root', 'calm-root', 'game-root', 'hanashi-root'].some(id => { const el = document.getElementById(id); return !!(el && el.childElementCount); });
   }
   function confirmSheet(msg, yesLabel, onYes) {
     openSheet(`<div class="confirm"><p class="confirm-msg">${esc(msg)}</p>
@@ -382,7 +388,7 @@
     v.innerHTML = VIEWS[name]();
     v.dataset.view = name;
     $$('[data-tab]').forEach(t => {
-      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'omikuji' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta');
+      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'omikuji' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta') || (name === 'hanashi' && t.dataset.tab === 'home');
       t.classList.toggle('is-active', on);
       if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     });
@@ -493,7 +499,7 @@
         <li><a class="act act-ogiri" href="#ogiri">
           <span class="act-no">五</span>
           <span class="act-body"><span class="act-name">大喜利<em class="badge badge-game">ゲーム</em></span>
-          <span class="act-desc">妖怪当て早押しと、いまひろい。遊びながら、ツッコミと注意をきたえる</span></span>
+          <span class="act-desc">今夜の百鬼夜行、妖怪当て、いまひろい、事実か考えか。遊びながら、ツッコミと注意をきたえる</span></span>
           <span class="act-art">${A.yokai('raiju', 'happy', { silhouette: !(S.legends && S.legends.raiju), cls: S.legends && S.legends.raiju ? 'is-legend' : '' })}</span>
         </a></li>
         <li><a class="act act-sub" href="#zukan">
@@ -504,11 +510,17 @@
           <span class="act-no">七</span>
           <span class="act-body"><span class="act-name">ネタ帳</span><span class="act-desc">これまでの漫才を、もう一度上演する</span></span>
         </a></li>
+        <li class="tori"><a class="act act-tori" href="#hanashi">
+          <span class="act-no tori-no">トリ</span>
+          <span class="act-body"><span class="act-name">笑い噺</span>
+          <span class="act-desc">ちいさなしくじりを、10年後の笑い話に。今日の「おかしみ」拾いも。世界は、あなたの相方</span></span>
+          <span class="act-art act-art-tori" aria-hidden="true">${A.you('happy')}</span>
+        </a></li>
       </ol>
     </section>
 
     <aside class="kobanashi" aria-label="今日の小噺"><p class="kobanashi-k">今日の小噺</p><p class="kobanashi-t">${esc(tip)}</p></aside>
-    ${S.scripts.length === 0 ? `<section class="first-show"><p>はじめての方は、まず見本の漫才をどうぞ。1分で終わります。</p><button class="btn btn-ghost" data-act="playSample">見本の漫才を観る</button></section>` : ''}
+    ${S.scripts.length === 0 ? `<section class="first-show"><p>はじめての方は、まず見本の漫才をどうぞ。1分で終わります。</p><div class="btn-row"><button class="btn btn-ghost" data-act="playSample">見本の漫才を観る</button><button class="btn btn-ghost" data-act="daihonOpen">台本のしくみを読む</button></div></section>` : ''}
     `;
   };
 
@@ -599,10 +611,91 @@
     </div>`;
   }
 
+  // ---- 第七回：セリフの位置づけ（役目カード・頭の声との距離・いまの台本・台本のしくみ） ----
+  function voiceMeter(dist) {
+    return `<div class="vmeter" role="img" aria-label="頭の声との距離：${esc(D.VOICE_DIST[dist])}">
+      <span class="vm-end">くっつく</span>
+      <span class="vm-track">${D.VOICE_DIST.map((l, k) => `<i class="${k < dist ? 'past' : k === dist ? 'now' : ''}"></i>`).join('')}</span>
+      <span class="vm-end">えらべる</span>
+      <span class="vm-now">頭の声：<b>${esc(D.VOICE_DIST[dist])}</b></span>
+    </div>`;
+  }
+  function roleTips(R) {
+    return `<p>${esc(R.what)}</p>
+      ${R.good.length || R.bad.length ? `<ul class="role-ex">${R.good.map(g => `<li class="ok"><span class="mk" aria-label="よい例">◯</span><span>${esc(g)}</span></li>`).join('')}${R.bad.map(([b, why]) => `<li class="ng"><span class="mk" aria-label="惜しい例">△</span><span>${esc(b)}<small>${esc(why)}</small></span></li>`).join('')}</ul>` : ''}`;
+  }
+  function roleCard(i) {
+    const R = D.DAIHON[i];
+    return `<section class="role-card" aria-label="このセリフの役目">
+      <div class="role-top"><span class="role-no" aria-hidden="true">${i + 1}</span><p class="role-name"><b>${esc(R.name)}</b><span>＝ ${esc(R.role)}</span></p></div>
+      <p class="role-shift"><span class="rs-from">${esc(R.from)}</span><span class="rs-arrow" aria-label="から">→</span><span class="rs-to">${esc(R.to)}</span></p>
+      ${voiceMeter(R.dist)}
+      <details class="role-tips"><summary>${R.bad.length ? '書くコツ（◯と△）' : 'このステップのこと'}</summary>${roleTips(R)}
+        <button class="link-btn" data-act="daihonOpen" data-step="${R.id}">台本のしくみを、ぜんぶ読む</button></details>
+    </section>`;
+  }
+  function scRow(role, line, cls, note) {
+    return `<div class="sc-row${cls ? ' ' + cls : ''}">${role ? `<span class="sc-role">${esc(role)}</span>` : ''}<span class="sc-line">${line}</span>${note ? `<span class="sc-now">${esc(note)}</span>` : ''}</div>`;
+  }
+  // いまの台本：書いたところまでを、役名・セリフ・ト書きの台本の形で見せる。空いている行が「いまここ」
+  function scriptPeek(m, i) {
+    const y = m.yokai[0] ? D.yokaiById[m.yokai[0]] : null;
+    const emo = D.emotionById[m.emotion];
+    const me = S.profile.name || 'あなた';
+    const rows = [];
+    rows.push(scRow('', `（開演前。心の天気は「${esc(emo ? emo.label : '—')}」、強さ${m.emoBefore}）`, 'togaki'));
+    if (i >= 3 && y) rows.push(scRow('', `（${esc(y.name)}、得意げに）`, 'togaki'));
+    rows.push(scRow(y ? y.name : '？？？', `「${esc(m.thought)}」`, i === 2 ? (y ? 'filled' : 'now') : 'boke', i === 2 && !y ? '← 役名を入れるところ' : ''));
+    if (i >= 4) rows.push(scRow('', '（……という考えが、いま浮かんでいる）', 'togaki'));
+    if (i >= 5) {
+      Object.entries(m.tk).filter(([, v]) => v && v.trim()).forEach(([id, a]) => {
+        rows.push(scRow(me, `「${esc(tkLine(D.tsukkomiById[id], m.gentle))}」`, 'tk'));
+        rows.push(scRow('', nl2br(a.trim()), 'ans'));
+      });
+      if (y) rows.push(scRow(y.name, `「${esc(y.concede)}」`, ''));
+      rows.push(`<div class="sc-row now"><span class="sc-role">${esc(me)}</span><span class="sc-line" id="peekOchi">${m.newThought.trim() ? '「' + esc(m.newThought.trim()) + '」' : '（オチ）'}</span><span class="sc-now">← いまここ</span></div>`);
+    } else if (i === 4) {
+      rows.push(scRow(me, '（ツッコミ：問い ＋ 事実の答え）', 'now', '← いまここ'));
+    }
+    return `<div class="script-peek" aria-label="いまの台本"><p class="sp-k"><span>いまの台本</span><button class="link-btn" data-act="daihonOpen" data-step="${D.DAIHON[i].id}">台本のしくみ</button></p>${rows.join('')}</div>`;
+  }
+  function daihonGuide() {
+    const SA = D.SAMPLE; const y = D.yokaiById[SA.yokai[0]];
+    const T1 = D.tsukkomiById[SA.tk[0].id];
+    const samples = {
+      feel: scRow('', '（開演前。心の天気は「不安」、強さ70）', 'togaki'),
+      boke: scRow('？？？', `「${esc(SA.thought)}」`, 'raw'),
+      kantei: scRow(y.name, `「${esc(SA.thought)}」`, 'filled'),
+      kouza: scRow('', `（${esc(y.name)}、得意げに）`, 'togaki') + scRow(y.name, `「${esc(SA.thought)}」`, '') + scRow('', '（……という考えが、いま浮かんでいる）', 'togaki'),
+      tsukkomi: scRow('あなた', `「${esc(tkLine(T1))}」`, 'tk') + scRow('', esc(SA.tk[0].a), 'ans'),
+      iinaoshi: scRow(y.name, `「${esc(y.concede)}」`, '') + scRow('あなた', `「${esc(SA.newThought)}」`, 'ochi')
+    };
+    return `<div class="daihon">
+      <h2 class="sheet-title">台本のしくみ</h2>
+      <p class="dh-sub">ひとつのセリフが、オチになるまで</p>
+      <p class="dh-lead">漫才の台本では、セリフの一つひとつに役目があります。ココロ寄席の台本も同じ。頭の声は、6つのセリフを通って、少しずつ<strong>距離</strong>が変わっていきます。考えが消えるのではなく、<strong>持ち方</strong>が変わるのです。</p>
+      <ol class="dh-list">${D.DAIHON.map(R => `<li class="dh-item" id="dh-${R.id}">
+        <div class="dh-head"><span class="dh-no" aria-hidden="true">${D.DAIHON.indexOf(R) + 1}</span><div><h3 class="dh-name">${esc(R.name)}</h3><p class="dh-role">${esc(R.role)}</p></div></div>
+        <div class="script-peek dh-sample">${samples[R.id]}</div>
+        <p class="role-shift"><span class="rs-from">${esc(R.from)}</span><span class="rs-arrow" aria-label="から">→</span><span class="rs-to">${esc(R.to)}</span></p>
+        ${voiceMeter(R.dist)}
+        ${roleTips(R)}
+      </li>`).join('')}</ol>
+      <div class="dh-end"><p class="dh-end-k">そして、上演</p><p>見本の漫才では、セリフの信じ度が <strong>${SA.beliefBefore}%</strong> から <strong>${SA.beliefAfter}%</strong> に。ゼロにならなくていい。重さが変われば、それで十分です。</p></div>
+      <button class="btn btn-ghost btn-block" data-act="playSample">見本の漫才を観る</button>
+    </div>`;
+  }
+  ACT.daihonOpen = el => {
+    openSheet(daihonGuide(), { label: '台本のしくみ ― ひとつのセリフが、オチになるまで' });
+    const step = el && el.dataset.step;
+    if (step) setTimeout(() => { const t = document.getElementById('dh-' + step); if (t) t.scrollIntoView({ block: 'start' }); }, 60);
+  };
+
   function sFeel(m) {
     return `${stepHead(0)}
     <h1 class="wiz-title">いま、どんな気分？</h1>
     <p class="wiz-lead">いちばん近いものを、ひとつ選んでください。</p>
+    ${roleCard(0)}
     <div class="chips" role="group" aria-label="気分">${D.EMOTIONS.map(e =>
       `<button class="chip${m.emotion === e.id ? ' on' : ''}" aria-pressed="${m.emotion === e.id}" data-act="mzEmotion" data-id="${e.id}">${e.label}</button>`).join('')}</div>
     <div class="field">
@@ -618,6 +711,7 @@
     return `${stepHead(1)}
     <h1 class="wiz-title">頭に浮かんだセリフは？</h1>
     <p class="wiz-lead">考えたことを、そのまま一行で。ここに書いたことは、この端末の外には出ません。</p>
+    ${roleCard(1)}
     <div class="field">
       <label for="situation">何があった？ <span class="opt">書かなくてもOK</span></label>
       <input type="text" id="situation" maxlength="120" value="${esc(m.situation)}" placeholder="例：明日の会議で発表する" data-bind="situation" autocomplete="off">
@@ -657,7 +751,8 @@
     return `${stepHead(2)}
     <h1 class="wiz-title">妖怪鑑定</h1>
     <p class="wiz-lead">このセリフは、どの妖怪のしわざ？ 2体まで選べます。</p>
-    <blockquote class="boke-quote">「${esc(m.thought)}」</blockquote>
+    ${roleCard(2)}
+    ${scriptPeek(m, 2)}
     ${vague.length ? `<div class="vague-hint">
       <div class="vague-art">${A.yokai(vague[0], 'norm')}</div>
       <div><p><strong>${esc(D.yokaiById[vague[0]].name)}</strong>の気配もします。理由のはっきりしない不安や、止まらない考えには、言い返すより「眺める」ほうが合うことがあります。</p>
@@ -681,30 +776,81 @@
 
   function sKouza(m) {
     const y = D.yokaiById[m.yokai[0]];
-    const voiceNote = Voice.can() ? '' : '<p class="muted small">この端末では読み上げが使えないため、見た目だけ変わります。</p>';
+    const voiceNote = Voice.can() ? '' : '<p class="muted small">この端末では読み上げが使えないため、見た目だけ変わります（文字と番組の遊びは、そのまま楽しめます）。</p>';
+    const grp = KZ.group || (FX_ALL[m.fx] ? FX_ALL[m.fx].g : 'koe');
+    const it = FX_ALL[m.fx];
     return `${stepHead(3)}
     <h1 class="wiz-title">高座にあげてみよう</h1>
-    <p class="wiz-lead">そのセリフを、${esc(y.name)}に言わせてみます。声や大きさを変えて、遊んでみてください。</p>
-    <div class="mini-stage">
-      <div class="mini-bubble" id="kouzaBubble" data-fx="${esc(m.fx)}"><span class="who">${esc(y.name)}</span><span class="mini-text">${esc(bokeLine(y, m.thought))}</span></div>
+    <p class="wiz-lead">そのセリフを、${esc(y.name)}に言わせてみます。声・文字・番組の形を変えて、遊んでみてください。</p>
+    ${roleCard(3)}
+    <div class="mini-stage${it && it.g === 'bangumi' ? ' frame frame-' + m.fx : ''}" id="kouzaStage">
+      <div class="mini-bubble" id="kouzaBubble" data-fx="${esc(m.fx)}"><span class="who">${esc(y.name)}</span><span class="mini-text" id="kouzaText">${fxStaticHtml(m.fx, y, m.thought)}</span></div>
       <div class="mini-actor" id="kouzaActor">${A.yokai(y.id, 'smug')}</div>
     </div>
-    <div class="fx-row" role="group" aria-label="セリフで遊ぶ">
-      <button class="btn btn-small" data-act="kouzaFx" data-fx="yokai">妖怪の声</button>
-      <button class="btn btn-small" data-act="kouzaFx" data-fx="helium">ヘリウム声</button>
-      <button class="btn btn-small" data-act="kouzaFx" data-fx="slow">スローモー</button>
-      <button class="btn btn-small" data-act="kouzaFx" data-fx="tiny">ちっちゃく</button>
-      <button class="btn btn-small fx-telop" data-act="kouzaFx" data-fx="telop">テロップを出す</button>
-    </div>
+    <div class="fx-tabs" role="tablist" aria-label="遊び方の種類">${D.KOUZA_FX.map(g => `<button class="fx-tab${g.id === grp ? ' on' : ''}" role="tab" aria-selected="${g.id === grp}" data-act="kouzaGroup" data-g="${g.id}">${esc(g.label)}</button>`).join('')}</div>
+    <div class="fx-row" id="fxRow" role="group" aria-label="セリフで遊ぶ">${fxButtons(grp, m.fx)}</div>
+    <p class="fx-note" id="fxNote" aria-live="polite">${it ? esc(it.note) : '遊び方を選ぶと、セリフの見え方・聞こえ方が変わります。'}</p>
     ${voiceNote}
     <div class="defuse">
       <p class="defuse-k">ここがポイント</p>
       <p>このセリフを言っているのは<strong>${esc(y.name)}</strong>。あなたではありません。</p>
       <p class="defuse-reframe">「${esc(m.thought)}」<br><span>……という考えが、いま浮かんでいる。</span></p>
+      <p class="muted">遊ぶのは、考えを追い出すためではありません。考えを「考え」として眺めるためです。遊んだあとに残っていても、大丈夫。</p>
       <p class="muted">落語家が扇子一本でそばをすすって見せるように、妖怪はセリフ一つで、まだ起きていない出来事を見せる名人です。出来事は本物でも、頭の中のセリフには脚色が入っています。セリフなら、ツッコめます。</p>
     </div>
     ${wizNav(3, 'ツッコミへ', false)}`;
   }
+
+  // ---- 第七回：高座の遊び（声・文字・番組） ----
+  const KZ = { group: null, timers: [] };
+  const FX_ALL = {};
+  D.KOUZA_FX.forEach(g => g.items.forEach(it => { FX_ALL[it.id] = Object.assign({ g: g.id }, it); }));
+  const charSpans = t => Array.from(String(t)).map((c, i) => `<span class="ch" style="--i:${i}">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('');
+  function fxButtons(grp, cur) {
+    const g = D.KOUZA_FX.find(x => x.id === grp) || D.KOUZA_FX[0];
+    return g.items.map(it => `<button class="btn btn-small${cur === it.id ? ' on' : ''}" data-act="kouzaFx" data-fx="${it.id}" aria-pressed="${cur === it.id}">${esc(it.name)}</button>`).join('');
+  }
+  // 連呼するいちばん強い言葉（妖怪の口ぐせ → 読点のあと → 先頭）
+  function keyWord(thought, y) {
+    const t = String(thought || '');
+    const ks = (y.keywords || []).concat(...DISTORTIONS.map(d => d.keywords)).filter(k => k.length >= 2 && t.includes(k)).sort((a, b) => b.length - a.length);
+    if (ks.length) { // 言葉の切れ目まで少しのばす（思われ → 思われる）
+      let w = ks[0]; let i = t.indexOf(w) + w.length;
+      while (i < t.length && w.length < ks[0].length + 3 && /[ぁ-ゖー]/.test(t[i]) && !/[をはがにでとのへもや]/.test(t[i])) { w += t[i]; i++; }
+      return w;
+    }
+    const parts = t.split(/[、。,.！？!?\s]/).map(s => s.trim()).filter(Boolean);
+    const last = parts[parts.length - 1] || t;
+    return last.length > 8 ? last.slice(-6) : last;
+  }
+  function frameParts(fx, y, thought) {
+    const me = S.profile.name || 'あなた';
+    return {
+      jikkyo: { badge: 'LIVE', sub: '頭の中スタジアム', main: `おーっと！ ここで${y.name}選手、「${thought}」を放ったー！`, sub2: `解説の${me}さん「いつもの得意技ですね」` },
+      tenki: { badge: '頭の中の天気', sub: '☁', main: `きょうの頭の中は、ところにより「${thought}」でしょう。`, sub2: '午後からは、ときどき晴れ間も出る見込みです。' },
+      sokuho: { badge: 'ニュース速報', sub: '', main: `${y.name}が「${thought}」と発言`, sub2: '本人は「いつものこと」と話しています。' },
+      yokoku: { badge: '予告編', sub: 'この秋、あなたの頭の中で上映――', main: `『${thought}』`, sub2: `主演 ${y.name}　全米が……泣いてない` }
+    }[fx];
+  }
+  function fxStaticHtml(fx, y, thought) {
+    const line = bokeLine(y, thought);
+    const it = FX_ALL[fx];
+    if (it && it.g === 'bangumi' && fx !== 'telop') {
+      const f = frameParts(fx, y, thought);
+      return `<span class="fr-badge">${esc(f.badge)}</span>${f.sub ? `<span class="fr-sub">${esc(f.sub)}</span>` : ''}<span class="fr-main">${esc(f.main)}</span><span class="fr-sub2">${esc(f.sub2)}</span>`;
+    }
+    if (fx === 'sakasa') return charSpans(Array.from(thought).reverse().join(''));
+    if (fx === 'renko') { const w = keyWord(thought, y); return Array.from({ length: 20 }, (_, i) => `<span class="rw" style="--i:${i}">${esc(w)}</span>`).join(''); }
+    if (fx === 'puru' || fx === 'funya' || fx === 'bara') return charSpans(line);
+    return esc(line);
+  }
+  function kzClear() { KZ.timers.forEach(clearTimeout); KZ.timers = []; }
+  const kzLater = (fn, ms) => { KZ.timers.push(setTimeout(fn, ms)); };
+  ACT.kouzaGroup = el => {
+    KZ.group = el.dataset.g;
+    $$('.fx-tab').forEach(t => { const on = t.dataset.g === KZ.group; t.classList.toggle('on', on); t.setAttribute('aria-selected', on); });
+    const row = $('#fxRow'); if (row) row.innerHTML = fxButtons(KZ.group, mz().fx);
+  };
 
   function recTk(m) {
     const ids = [];
@@ -734,7 +880,8 @@
     return `${stepHead(4)}
     <h1 class="wiz-title">ツッコミを入れよう</h1>
     <p class="wiz-lead">${esc(names)}の弱点は、このあたり。気になるものを開いて、1つ以上答えてみてください。</p>
-    <blockquote class="boke-quote">「${esc(m.thought)}」</blockquote>
+    ${roleCard(4)}
+    ${scriptPeek(m, 4)}
     <div class="tk-list">${rec.map(id => tkCard(m, id)).join('')}</div>
     <details class="more-tk"${othersOpen ? ' open' : ''}><summary>ほかのツッコミ（${others.length}）</summary>
       <div class="tk-list">${others.map(id => tkCard(m, id)).join('')}</div>
@@ -742,23 +889,75 @@
     ${wizNav(4, '言い直しへ', answered === 0)}`;
   }
 
+  // オチの点検：妖怪の口ぐせの残り、ポジティブの押しつけ、長さ
+  function ochiHints(text) {
+    const t = String(text || '').trim();
+    if (t.length < 2) return [];
+    const OC = D.OCHI_CHECK;
+    const H = [];
+    const tox = OC.toxic.filter(w => t.includes(w));
+    if (tox.length) H.push({ cls: 'warn', t: `「${tox[0]}」は、ポジティブの押しつけかも。心が6割くらい信じられる言い方にすると、届きやすくなります。` });
+    const seen = new Set();
+    OC.leftovers.forEach(([w, yid]) => {
+      if (seen.has(yid) || !t.includes(w) || tox.some(x => x.includes(w))) return;
+      seen.add(yid);
+      H.push({ cls: 'warn', t: `「${w}」が入っています。${D.yokaiById[yid].name}の口ぐせが残っていないか、読み返してみて（打ち消しの形で使っているならOK）。` });
+    });
+    if (t.length > 140) H.push({ cls: 'info', t: '長いオチは届きにくいもの。いちばん言いたいひとことに、しぼってみても。' });
+    if (!H.some(h => h.cls === 'warn')) {
+      H.push(OC.balance.some(w => t.includes(w))
+        ? { cls: 'ok', t: '受けとめて、ずらして、着地している。バランスのいいオチです。' }
+        : { cls: 'ok', t: '妖怪の口ぐせは見当たりません。「でも」「かもしれない」を入れると、さらに信じやすくなります。' });
+    }
+    return H;
+  }
+  const ochiHintsHtml = text => ochiHints(text).map(h => `<li class="oh-${h.cls}">${esc(h.t)}</li>`).join('');
   function sIinaoshi(m) {
     const answered = Object.entries(m.tk).filter(([, v]) => v && v.trim());
+    const kata = m.kata || {};
+    const short = t => { const x = String(t).replace(/\s+/g, ' ').trim(); return x.length > 16 ? x.slice(0, 16) + '…' : x; };
     return `${stepHead(5)}
     <h1 class="wiz-title">言い直しのセリフ</h1>
-    <p class="wiz-lead">ツッコミをふまえて、しっくりくる言い方に。完璧じゃなくていい。「ちょっとマシ」で十分です。</p>
-    <div class="recap">
-      <p class="recap-row"><span class="recap-k">ボケ</span><span>「${esc(m.thought)}」</span></p>
-      ${answered.map(([id, a]) => `<p class="recap-row"><span class="recap-k tk">${esc(tkLine(D.tsukkomiById[id], m.gentle))}</span><span>${nl2br(a)}</span></p>`).join('')}
-    </div>
+    <p class="wiz-lead">オチを書くところです。ツッコミをふまえて、しっくりくる言い方に。完璧じゃなくていい。「ちょっとマシ」で十分です。</p>
+    ${roleCard(5)}
+    ${scriptPeek(m, 5)}
+    <details class="ochi-kata"${m.newThought.trim() ? '' : ' open'}>
+      <summary>オチの型で組み立てる <span class="opt">たしかに・でも・だから</span></summary>
+      <div class="ok-row"><label for="okA">たしかに、</label><input type="text" id="okA" maxlength="120" value="${esc(kata.a || '')}" placeholder="気持ちを受けとめる（例：変だと思う人もいるかもしれない）" data-bind="okPart" data-k="a" autocomplete="off"></div>
+      <div class="ok-row"><label for="okB">でも、</label><input type="text" id="okB" maxlength="160" value="${esc(kata.b || '')}" placeholder="事実・別の見方（例：前はうなずいてもらえた）" data-bind="okPart" data-k="b" autocomplete="off"></div>
+      ${answered.length ? `<div class="ok-borrow"><span class="examples-k">ツッコミの答えを「でも」に借りる</span>${answered.map(([id, a]) => `<button class="chip chip-sm" data-act="okBorrow" data-id="${id}">${esc(short(a))}</button>`).join('')}</div>` : ''}
+      <div class="ok-row"><label for="okC">だから、</label><input type="text" id="okC" maxlength="120" value="${esc(kata.c || '')}" placeholder="次の一歩・自分で選ぶ言い方（例：まず一つ言ってみる）" data-bind="okPart" data-k="c" autocomplete="off"></div>
+      <button class="btn btn-small" data-act="okCompose">型からオチを作る</button>
+    </details>
     <div class="field">
-      <label for="newThought">新しいセリフ</label>
+      <label for="newThought">オチ（新しいセリフ）</label>
       <div class="examples"><span class="examples-k">書き出しを入れる</span>${D.STEMS.map((s, i) =>
         `<button class="chip chip-sm" data-act="mzStem" data-i="${i}">${esc(s)}</button>`).join('')}</div>
       <textarea id="newThought" rows="4" maxlength="400" placeholder="例：変だと思う人もいるかもしれない。でも、前はうなずいてもらえた。" data-bind="newThought">${esc(m.newThought)}</textarea>
+      <ul class="ochi-hints" id="ochiHints" aria-live="polite" aria-label="オチの点検">${ochiHintsHtml(m.newThought)}</ul>
     </div>
     ${wizNav(5, m.gentle ? '読み上げる' : 'いざ、上演！', m.newThought.trim().length < 2)}`;
   }
+  function ochiRefresh(text) {
+    const h = $('#ochiHints'); if (h) h.innerHTML = ochiHintsHtml(text);
+    const p = $('#peekOchi'); if (p) p.textContent = text.trim() ? '「' + text.trim() + '」' : '（オチ）';
+  }
+  const endPunct = t => (/[。！？!?]$/.test(t) ? t : t + '。');
+  ACT.okBorrow = el => {
+    const m = mz(); const a = (m.tk[el.dataset.id] || '').split('\n')[0].trim().replace(/[。]$/, '');
+    m.kata = Object.assign({}, m.kata, { b: a.slice(0, 160) });
+    const inp = $('#okB'); if (inp) { inp.value = m.kata.b; inp.focus(); }
+    saveDraftSoon();
+  };
+  ACT.okCompose = () => {
+    const m = mz(); const k = m.kata || {};
+    const a = (k.a || '').trim(), b = (k.b || '').trim(), c = (k.c || '').trim();
+    if (!a && !b && !c) { toast('「たしかに」「でも」「だから」のどれかを書いてみてください'); return; }
+    const text = (a ? endPunct('たしかに、' + a) : '') + (b ? endPunct('でも、' + b) : '') + (c ? endPunct('だから、' + c) : '');
+    const ta = $('#newThought'); ta.value = text; m.newThought = text;
+    setNext(text.trim().length >= 2); ochiRefresh(text); saveDraftSoon();
+    ta.focus(); Sfx.pop();
+  };
 
   function mzRate(m) {
     const emo = D.emotionById[m.emotion] || { label: '気分' };
@@ -828,10 +1027,18 @@
         : '数字が変わらなくても大丈夫。ツッコミを入れてみたこと自体が、次の練習になります。'}</p>
       <p class="xp-gain">経験 +${r.xp}${r.rankUp ? `　<strong>${esc(r.rankUp)}に昇進しました</strong>` : ''}</p>
       ${r.unlocked.map(id => { const u = D.yokaiById[id]; return `<div class="honne"><p class="honne-k">${esc(u.name)}の本音が聞けるようになりました</p><blockquote>${esc(u.honne)}</blockquote></div>`; }).join('')}
+      ${!sc.gentle && CORE.openHanashi ? `<a class="hanashi-link" href="#hanashi" data-act="toHanashi" data-id="${sc.id}"><span class="hl-k">トリ・笑い噺</span><span class="hl-t">このできごとを、10年後の笑い話にしてみる？</span><span class="hl-s">重い出来事なら、笑いにしなくて大丈夫です</span></a>` : ''}
       ${sc.gentle ? `<div class="gentle-note"><p>今日はとてもしんどい気持ちを書いてくれました。ひとりで抱えなくて大丈夫です。</p><button class="btn btn-ghost" data-act="openSos">相談先を見る</button></div>` : ''}
       <div class="btn-row"><button class="btn btn-ghost" data-act="replay" data-id="${sc.id}">もう一度上演</button><button class="btn btn-primary" data-act="goHome">番組にもどる</button></div>
     </div>`;
   }
+
+  ACT.toHanashi = (el, e) => {
+    if (e) e.preventDefault();
+    const sc = S.scripts.find(s => s.id === el.dataset.id);
+    RESULT = null;
+    if (CORE.openHanashi) CORE.openHanashi(sc ? sc.situation || '' : '');
+  };
 
   // ---- ネタ作りの操作 ----
   ACT.mzQuit = () => {
@@ -859,27 +1066,70 @@
     else { m.yokai.push(id); if (m.yokai.length > 2) m.yokai.shift(); }
     saveDraft(); rerender();
   };
+  const FX_VOICES = y => ({ yokai: y.voice, helium: { pitch: 2, rate: 1.7 }, slow: { pitch: 0.6, rate: 0.45 }, tiny: { pitch: 1.9, rate: 1.1, volume: 0.35 } });
   ACT.kouzaFx = el => {
     const m = mz(); const y = D.yokaiById[m.yokai[0]]; const fx = el.dataset.fx;
-    const b = $('#kouzaBubble'); const actor = $('#kouzaActor');
+    const b = $('#kouzaBubble'); const actor = $('#kouzaActor'); const stage = $('#kouzaStage'); const txt = $('#kouzaText');
+    const it = FX_ALL[fx];
+    const note = $('#fxNote'); if (note && it) note.textContent = it.note;
     if (fx === 'telop') { // ※イメージです
-      const stage = b.closest('.mini-stage');
       let t = $('.mini-telop', stage);
       if (!t) { t = document.createElement('span'); t.className = 'mini-telop'; t.setAttribute('role', 'status'); stage.appendChild(t); }
-      let txt = pick(D.TELOPS);
-      for (let k = 0; k < 4 && txt === t.textContent; k++) txt = pick(D.TELOPS);
-      t.textContent = txt;
+      let tx = pick(D.TELOPS);
+      for (let k = 0; k < 4 && tx === t.textContent; k++) tx = pick(D.TELOPS);
+      t.textContent = tx;
       t.classList.remove('in'); void t.offsetWidth; t.classList.add('in');
       Sfx.pop(); buzz(10);
-      Voice.speak(txt.replace('※', ''), { force: true, pitch: 1, rate: 1.15 });
+      Voice.speak(tx.replace('※', ''), { force: true, pitch: 1, rate: 1.15 });
       return;
     }
-    m.fx = fx;
+    kzClear(); Voice.stop();
+    txt.classList.remove('fall');
+    m.fx = fx; saveDraftSoon();
+    $$('#fxRow .btn').forEach(x => { const on = x.dataset.fx === fx; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); });
+    stage.className = 'mini-stage' + (it.g === 'bangumi' ? ' frame frame-' + fx : '');
+    const tl = $('.mini-telop', stage); if (tl) tl.remove();
     b.dataset.fx = ''; void b.offsetWidth; b.dataset.fx = fx;
     actor.classList.remove('bob'); void actor.offsetWidth; actor.classList.add('bob');
-    const text = bokeLine(y, m.thought);
-    const v = { yokai: y.voice, helium: { pitch: 2, rate: 1.7 }, slow: { pitch: 0.6, rate: 0.45 }, tiny: { pitch: 1.9, rate: 1.1, volume: 0.35 } }[fx];
-    Voice.speak(text, Object.assign({ force: true }, v));
+    const line = bokeLine(y, m.thought);
+    if (it.g === 'koe') { txt.innerHTML = esc(line); Voice.speak(line, Object.assign({ force: true }, FX_VOICES(y)[fx])); return; }
+    if (it.g === 'bangumi') {
+      txt.innerHTML = fxStaticHtml(fx, y, m.thought);
+      const f = frameParts(fx, y, m.thought);
+      if (fx === 'sokuho') Sfx.chime(); else Sfx.pop();
+      const v = { jikkyo: { pitch: 1.3, rate: 1.45 }, tenki: { pitch: 1.05, rate: 1 }, sokuho: { pitch: 0.9, rate: 1.05 }, yokoku: { pitch: 0.4, rate: 0.75 } }[fx];
+      Voice.speak(f.main + '。' + f.sub2, Object.assign({ force: true }, v));
+      return;
+    }
+    // 文字で遊ぶ
+    if (fx === 'piko') { // 一文字ずつ、電子音つきで
+      txt.innerHTML = '';
+      const chars = Array.from(line);
+      const base = 300 + (y.voice.pitch || 1) * 260;
+      chars.forEach((c, i) => kzLater(() => {
+        const e = document.getElementById('kouzaText'); if (!e) return;
+        e.insertAdjacentHTML('beforeend', `<span class="ch pk">${esc(c)}</span>`);
+        if (!/[\s、。「」…！？]/.test(c)) Sfx.blip(base + (i % 3) * 40);
+      }, (reduceMotion() ? 15 : 70) * i));
+      return;
+    }
+    txt.innerHTML = fxStaticHtml(fx, y, m.thought);
+    if (fx === 'puru') Voice.speak(line, { force: true, pitch: (y.voice.pitch || 1) * 1.1, rate: 1.25 });
+    else if (fx === 'funya') Voice.speak(line, { force: true, pitch: 0.7, rate: 0.6 });
+    else if (fx === 'sakasa') Voice.speak(Array.from(m.thought).reverse().join(''), { force: true, pitch: 1.1, rate: 1.1 });
+    else if (fx === 'renko') { const w = keyWord(m.thought, y); Voice.speak(Array(20).fill(w).join('、'), { force: true, rate: 1.7 }); }
+    else if (fx === 'bara') { // 文字が床に落ちて、散らばる
+      Sfx.pop();
+      kzLater(() => {
+        $$('#kouzaText .ch').forEach(c => {
+          c.style.setProperty('--dx', Math.round(Math.random() * 120 - 60) + 'px');
+          c.style.setProperty('--dr', Math.round(Math.random() * 300 - 150) + 'deg');
+          c.style.setProperty('--dl', (Math.random() * 0.35).toFixed(2) + 's');
+        });
+        const e = document.getElementById('kouzaText'); if (e) e.classList.add('fall');
+        buzz([10, 40, 10]);
+      }, reduceMotion() ? 50 : 700);
+    }
   };
   ACT.tkToggle = el => {
     const m = mz(); const id = el.dataset.id;
@@ -894,7 +1144,7 @@
     const ta = $('#newThought');
     const v = ta.value;
     ta.value = v ? v.replace(/\s*$/, '') + (v.trim() ? '\n' : '') + s : s;
-    mz().newThought = ta.value; setNext(ta.value.trim().length >= 2); saveDraftSoon();
+    mz().newThought = ta.value; setNext(ta.value.trim().length >= 2); ochiRefresh(ta.value); saveDraftSoon();
     ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
   };
 
@@ -951,7 +1201,7 @@
       situation: m.situation.trim(), thought: m.thought.trim(), beliefBefore: m.beliefBefore,
       yokai: m.yokai.slice(),
       tk: Object.entries(m.tk).filter(([, v]) => v && v.trim()).map(([id, a]) => ({ id, a: a.trim() })),
-      newThought: m.newThought.trim(), gentle: !!m.gentle
+      newThought: m.newThought.trim(), gentle: !!m.gentle, fx: m.fx || ''
     };
   }
 
@@ -987,7 +1237,8 @@
     el.closest('.tk-card').classList.toggle('answered', !!el.value.trim());
     setNext(Object.values(m.tk).some(v => v && v.trim())); saveDraftSoon();
   };
-  BIND.newThought = el => { mz().newThought = el.value; setNext(el.value.trim().length >= 2); saveDraftSoon(); };
+  BIND.newThought = el => { mz().newThought = el.value; setNext(el.value.trim().length >= 2); ochiRefresh(el.value); saveDraftSoon(); };
+  BIND.okPart = el => { const m = mz(); m.kata = Object.assign({}, m.kata, { [el.dataset.k]: el.value }); saveDraftSoon(); };
   BIND.beliefAfter = el => { mz().beliefAfter = +el.value; saveDraftSoon(); };
   BIND.emoAfter = el => { mz().emoAfter = +el.value; saveDraftSoon(); };
 
@@ -1010,7 +1261,7 @@
       L.push({ who: 'yokai', text: y.name + 'じゃ。よろしゅう。', mood: 'smug' });
       L.push({ who: 'you', text: K ? 'いや聞いてくださいよ。こいつがまた、頭の中で好き勝手しゃべりよるんですわ。' : '今日もこの子が、頭の中でいろいろ言ってきまして。' });
     }
-    L.push({ who: 'yokai', kind: 'boke', text: bokeLine(y, sc.thought), mood: 'smug' });
+    L.push({ who: 'yokai', kind: 'boke', text: bokeLine(y, sc.thought), mood: 'smug', fx: G ? '' : (sc.fx || '') });
     if (y2) L.push({ who: 'yokai', yid: y2.id, kind: 'boke', text: y2.pre + y2.post, mood: 'smug' });
     const tks = sc.tk.slice(0, 3);
     tks.forEach((t, i) => {
@@ -1113,8 +1364,12 @@
       b.innerHTML = `<span class="line">${esc(L.text)}</span><span class="telop-care">${esc(L.sub || '')}</span>`;
     } else {
       const who = L.who === 'you' ? (S.profile.name || 'あなた') : L.who === 'both' ? 'ふたり' : D.yokaiById[yid].name;
-      b.innerHTML = `<span class="who">${esc(who)}</span><span class="line">${nl2br(L.text)}</span>`;
+      const fx = L.fx && FX_ALL[L.fx] ? L.fx : '';
+      const badge = fx && FX_ALL[fx].g === 'bangumi' && fx !== 'telop' ? `<span class="fx-badge">${esc(frameParts(fx, D.yokaiById[yid], '').badge)}</span>` : '';
+      const body = fx === 'puru' || fx === 'funya' ? charSpans(L.text) : nl2br(L.text);
+      b.innerHTML = `<span class="who">${esc(who)}</span>${badge}<span class="line">${body}</span>`;
     }
+    b.dataset.fx = L.fx || '';
     void b.offsetWidth; b.classList.add('in');
     const yEl = $('#stYokai');
     if (L.who === 'yokai' || L.who === 'both' || L.who === 'telop') yEl.innerHTML = A.yokai(yid, L.mood || 'norm');
@@ -1144,7 +1399,8 @@
   function speakLine(L, yid) {
     if (!S.profile.voice || !Voice.can()) return null;
     const isY = L.who === 'yokai';
-    const o = isY ? D.yokaiById[yid].voice : L.kind === 'tsukkomi' ? { pitch: 1.15, rate: 1.3 } : { pitch: 1.05, rate: 1.05 };
+    const fxv = L.kind === 'boke' && L.fx ? FX_VOICES(D.yokaiById[yid])[L.fx] : null;
+    const o = fxv || (isY ? D.yokaiById[yid].voice : L.kind === 'tsukkomi' ? { pitch: 1.15, rate: 1.3 } : { pitch: 1.05, rate: 1.05 });
     const text = L.who === 'telop' ? L.text.replace(/^※/, '') + ' ' + (L.sub || '') : L.text;
     return Voice.speak(text, o);
   }
@@ -1890,7 +2146,7 @@
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
     confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.draft = null; MZ = null;
+      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {}); S.draft = null; MZ = null;
       save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
   };
