@@ -236,6 +236,11 @@
       hint: '提灯を一つも消さずに、百鬼の列を見送った者の前に。',
       desc: '正体のつかめない妖怪。百鬼夜行の行列を、ひとつの迷いもなく見送った者の前にだけ、夜の向こうから姿を見せる。',
       line: 'ヒョーウ……。わしの正体も、もう見えておるのだろう？ たいした目だ。', kuchiguse: [], keywords: [], sign: '' },
+    { id: 'hakushi', kind: 'legend', name: '白紙のページ', yomi: 'はくしのぺーじ', origin: '図鑑の最後のページ', title: '寄席そのもの',
+      distortion: '伝説：寄席そのもの', cond: 'しじまで、7回ひたる（ひと呼吸はのぞく）', celebK: '図鑑の最後のページが、ひらいた',
+      hint: '七たび静けさにひたった者の図鑑に、最後のページがひらく。',
+      desc: '図鑑の最後の、何も描かれていないページ。これまで出会った妖怪は、みんなこの白い紙の上に描かれていた。ボケも、ツッコミも、笑いも、静けさも、すべてがこの上に現れては、消えていく。',
+      line: '……（白いページは、何も言いません。ただ、ここにあります）', kuchiguse: [], keywords: [], sign: '' },
     { id: 'kirin', kind: 'legend', name: '麒麟', yomi: 'きりん', origin: '麒麟（よい世に現れるという霊獣）', title: '寄席の守り神',
       distortion: '伝説：寄席の守り神', cond: 'ほかの伝説7体すべてに出会う',
       hint: '七つの伝説が集うとき、よい世のしるしとして。',
@@ -562,7 +567,7 @@
     { min: 500, name: '名人' }
   ];
 
-  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3, game: 5, hanashi: 12, okashi: 2 };
+  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3, game: 5, hanashi: 12, okashi: 2, shijima: 6, hitoiki: 1 };
 
   // ---------- 大喜利（ゲームモード） ----------
   const GAME = {
@@ -802,6 +807,53 @@
     sage: 'お後が、よろしいようで。'
   };
 
+  // ---------- 第九回：しじま（はねたあとの寄席。静けさ・空間・「わたし」・いまへの入口） ----------
+  const SHIJIMA = {
+    practices: [
+      { id: 'hitoiki', name: 'ひと呼吸', min: '10秒', when: 'どんなときでも。開いたら、まずこれだけ',
+        desc: '意識して、ひとつだけ呼吸します。吸って、吐く。その一回だけ、いまに。', tech: 'エックハルト・トールが紹介している「意識的な呼吸」' },
+      { id: 'yoin', name: '余韻を聴く', min: '約2分', when: '静かな時間を、もう少し深めたいとき',
+        desc: 'おりんを鳴らし、音が消えていく最後を追いかけます。消えたあとに残る静けさに、そのまま、ひたります。3回。',
+        tech: 'エックハルト・トールの「静けさ」への入口、能の「間」、音の瞑想', sound: true },
+      { id: 'aida', name: 'あいだを見る', min: '約2分', when: '目の前のものに、気持ちがせわしなく向くとき',
+        desc: 'まわりの「もの」ではなく、ものとものの「あいだ」の空間を見ます。最後に、その空間に気づいているものへ。',
+        tech: 'エックハルト・トールの「空間への気づき」' },
+      { id: 'mekuri', name: 'めくりをめくる', min: '約2分', when: '「わたし」についての考えごとが、少しうるさいとき',
+        desc: '高座のめくりに書かれたあなたの芸名を、一枚ずつめくります。名前、役割、出来事、気分。最後に残る白い紙が、ただ「いる」という感じ。',
+        tech: 'エックハルト・トールの「わたしは在る」の感覚、ACTの「観察する自己」' },
+      { id: 'mondai', name: 'いま、問題はある？', min: '約1分', when: '少しだけ考えにとらわれているとき',
+        desc: '10分後でも、明日でもなく、いまこの瞬間に、問題はありますか？ ひとつの問いで、考えの中の問題と、いまの瞬間を分けます。',
+        tech: 'エックハルト・トールの問いかけ、脱フュージョン' }
+    ],
+    others: ['innerbody', 'imakoko', 'ma'],
+    hitoiki: { inhale: 4, exhale: 6 },
+    yoin: { rounds: 3, rest: 10, timeout: 25 },
+    aida: [
+      { k: 'mono', title: 'まわりのものを見る', text: '目に入るものを、ひとつずつ、名前をつけずに眺めます。机、壁、窓、手。', sec: 20 },
+      { k: 'aida', title: 'ものとものの「あいだ」', text: 'こんどは、ものとものの「あいだ」を見ます。机とコップのあいだ。窓と壁のあいだ。何もない、と思っていたところ。', sec: 25 },
+      { k: 'heya', title: '部屋ぜんたいの空間', text: 'その「何もない」が、部屋じゅうにひろがっています。すべてのものは、この空間の中に置かれています。', sec: 25 },
+      { k: 'uchi', title: '体の内側の空間', text: '目を閉じてもかまいません。体の内側にも、同じような、ひろびろとした空間を感じてみます。', sec: 25 },
+      { k: 'kizuki', title: '気づいているのは？', text: 'その空間に気づいている、何か。つかまえようとしなくても、それは、もうここにあります。', sec: 25 },
+      { k: 'open', title: '空間とともに', text: 'ものを見ながら、空間も感じたまま。目の前の景色に、少しだけ、ゆとりが戻ります。', sec: 20 }
+    ],
+    mekuri: [
+      { k: 'name', label: null, title: '名前', text: 'これは、あなたの芸名。日ごろも、あなたは名前で呼ばれています。この一枚を、めくってみます。' },
+      { k: 'yaku', label: '役割', title: '役割', text: '仕事の役、家族の中の役、ツッコミ担当。たくさんの役を演じています。これも、めくれます。' },
+      { k: 'kako', label: 'きのうまでの出来事', title: 'これまでの出来事', text: 'うまくいったことも、いかなかったことも。物語はあなたの一部ですが、あなたそのものではありません。めくります。' },
+      { k: 'kibun', label: 'いまの気分', title: 'いまの気分', text: 'いまの気分や、考えごと。それも、高座にかかった演目のひとつ。めくります。' },
+      { k: 'blank', label: '', title: '白い紙', text: '名前も、役割も、出来事も、気分もめくったあとに、残っているもの。ただ「いる」という感じ。それは、めくれません。' },
+      { k: 'iru', label: '', title: 'わたしは、いる', text: '「わたしは、いる」。ことばにしなくてもかまいません。そのまま、しばらく。', sec: 20 }
+    ],
+    mekuriEnd: 'めくりは、いつでも元に戻せます。名前も役割も、また使えばいい。ただ、その下にいつも白い紙があることを、ときどき思い出してください。',
+    ends: ['このまま、アプリを閉じて、いまの続きをどうぞ。', 'しじまは、アプリの外にもつづいています。', 'はねたあとの寄席は、いつでも静かです。また、どうぞ。'],
+    seats: [
+      { k: 'ツッコむ席', when: 'はっきりしたセリフが浮かんでいる', go: '妖怪漫才', href: '#home', act: 'startManzai' },
+      { k: 'ながめる席', when: 'もやもや・ぐるぐるしている', go: 'ながめ席', href: '#nagame' },
+      { k: 'ひたる席', when: 'わりと静か・いい感じ。少しだけ考えにとらわれている', go: 'しじま', href: '#shijima' }
+    ],
+    hakushiAt: 7
+  };
+
   // ---------- 第八回：今日の三題噺 ----------
   const SANDAI = [
     { id: 'fuku', prog: 'fuku', t: '福日記に1行', past: '福をひとつ書きとめた', href: '#fuku' },
@@ -813,7 +865,9 @@
     { id: 'hiroi', prog: 'ogiri', t: 'いまひろいを1回', past: '「いま」を拾い集めた', href: '#ogiri' },
     { id: 'mikuji', prog: 'omikuji', t: 'おみくじを引いて、やってくる', past: 'お告げどおりに、体を動かした', href: '#omikuji' },
     { id: 'okashi', prog: 'hanashi', t: '世界のボケを、ひとつ拾う', past: '世界のボケを、ひとつ拾った', href: '#hanashi' },
-    { id: 'manzai', prog: 'manzai', t: '妖怪漫才を1本（持ちネタを観るだけでもOK）', past: '妖怪に、ツッコミを入れた', href: '#mochineta' }
+    { id: 'manzai', prog: 'manzai', t: '妖怪漫才を1本（持ちネタを観るだけでもOK）', past: '妖怪に、ツッコミを入れた', href: '#mochineta' },
+    { id: 'hitoiki', prog: 'shijima', t: '意識的なひと呼吸を3回', past: 'いまに、3回もどった', href: '#shijima' },
+    { id: 'shijima', prog: 'shijima', t: 'しじまで、ひとつ', past: '静けさに、ひたった', href: '#shijima' }
   ];
 
   // ---------- 見本の漫才 ----------
@@ -836,7 +890,7 @@
   window.KY_DATA = {
     YOKAI, NAGAME, TSUKKOMI, TELOPS, END_TELOP, EMOTIONS, EXAMPLE_THOUGHTS, STEMS, ACTIONS, CATEGORIES, FORTUNES, KYO_ACTION, OKITE,
     OMIKUJI_LINES, RANKS, XP, FUKU, GAME, TIPS, RISK_WORDS, RISK_REGEX, HOTLINES, SAMPLE,
-    DAIHON, VOICE_DIST, OCHI_CHECK, KOUZA_FX, FX_TEXT, FX_VOICE, HANASHI, SANDAI,
+    DAIHON, VOICE_DIST, OCHI_CHECK, KOUZA_FX, FX_TEXT, FX_VOICE, HANASHI, SANDAI, SHIJIMA,
     yokaiById: Object.fromEntries(YOKAI.map(y => [y.id, y])),
     tsukkomiById: Object.fromEntries(TSUKKOMI.map(t => [t.id, t])),
     emotionById: Object.fromEntries(EMOTIONS.map(e => [e.id, e]))

@@ -1,5 +1,5 @@
 /* ココロ寄席 ― オフライン用のサービスワーカー（アプリ本体だけをキャッシュ） */
-const CACHE = 'kokoro-yose-v8';
+const CACHE = 'kokoro-yose-v9';
 const SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SHELL = [
   './js/fuku.js',
   './js/game.js',
   './js/hanashi.js',
+  './js/shijima.js',
   './js/app.js',
   './manifest.webmanifest',
   './icons/icon.svg',

@@ -42,7 +42,8 @@
       fuku: { finds: [], goods: [], days: {}, savors: 0 },
       game: { quiz: { plays: 0, best: 0, perfect: 0, levelBest: {} }, hiroi: { plays: 0, best: 0, bestNeutral: 0 }, sort: { plays: 0, best: 0 }, run: { plays: 0, best: 0, clears: 0, perfect: 0, daily: {} }, eye: {} },
       legends: {}, golden: {},
-      hanashi: { stories: [], okashi: [], draft: null }
+      hanashi: { stories: [], okashi: [], draft: null },
+      shijima: { sessions: [], breaths: {}, totalBreaths: 0 }
     };
   }
   let S = fresh();
@@ -58,6 +59,7 @@
         S.fuku = Object.assign(fresh().fuku, p.fuku || {});
         S.game = Object.assign(fresh().game, p.game || {});
         S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {});
+        S.shijima = Object.assign(fresh().shijima, p.shijima || {});
       }
     } catch (e) { storageOK = false; }
   }
@@ -190,6 +192,18 @@
       this.tone(c, t, f, f, 0.14, 0.14, 'triangle');
       if (n && n % 5 === 0) this.tone(c, t + 0.08, f * 1.5, f * 1.5, 0.1, 0.25);
     },
+    chon() { // 拍子木をひと打ち（しじまの合図）
+      const c = this.c(); if (!c) return;
+      const t = c.currentTime + 0.01;
+      this.tone(c, t, 1750, 1700, 0.45, 0.07, 'triangle');
+      this.tone(c, t, 2650, 2600, 0.22, 0.05);
+      this.burst(c, t, 3000, 2, 0.25, 0.03);
+    },
+    rin() { // 余韻を聴く：長く消えていくおりん（音を使う演目なので、効果音の設定に関係なく鳴らす）
+      const c = this.ctxAny(); if (!c) return;
+      const t = c.currentTime + 0.02;
+      [[528, 0.17, 9], [1457, 0.05, 5.5], [2851, 0.025, 3], [532, 0.07, 8.5], [264, 0.04, 6]].forEach(([f, g, d]) => this.tone(c, t, f, f, g, d));
+    },
     blip(f) { // ピコピコ（文字送りの電子音）
       const c = this.c(); if (!c) return;
       this.tone(c, c.currentTime + 0.005, f || 660, f || 660, 0.06, 0.05, 'square');
@@ -314,7 +328,7 @@
   }
   function closeAllSheets() { while (sheets.length) closeSheet(); }
   function overlayOpen() {
-    return ['stage-root', 'calm-root', 'game-root', 'hanashi-root'].some(id => { const el = document.getElementById(id); return !!(el && el.childElementCount); });
+    return ['stage-root', 'calm-root', 'game-root', 'hanashi-root', 'shijima-root'].some(id => { const el = document.getElementById(id); return !!(el && el.childElementCount); });
   }
   function confirmSheet(msg, yesLabel, onYes) {
     openSheet(`<div class="confirm"><p class="confirm-msg">${esc(msg)}</p>
@@ -443,7 +457,7 @@
     v.innerHTML = VIEWS[name]();
     v.dataset.view = name;
     $$('[data-tab]').forEach(t => {
-      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'omikuji' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta') || (name === 'hanashi' && t.dataset.tab === 'home');
+      const on = t.dataset.tab === name || (name === 'manzai' && t.dataset.tab === 'home') || (name === 'omikuji' && t.dataset.tab === 'home') || (name === 'mochineta' && t.dataset.tab === 'neta') || ((name === 'hanashi' || name === 'shijima') && t.dataset.tab === 'home');
       t.classList.toggle('is-active', on);
       if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     });
@@ -490,7 +504,7 @@
       <div class="hero-body">
         <p class="eyebrow">ココロ寄席 ${seki}</p>
         <h1 class="hero-title">頭の中のボケに、<br>ツッコミを。</h1>
-        <p class="hero-sub">ツッコめない不安は、眺めて流す。</p>
+        <p class="hero-sub">ツッコめない不安は、眺めて流す。<br>何もない時間は、ただ、ひたる。</p>
         <div class="rank-line">
           <div class="meter" role="progressbar" aria-valuenow="${prog}" aria-valuemin="0" aria-valuemax="100" aria-label="次の位までの進み具合"><i style="width:${prog}%"></i></div>
           <span class="rank-next">${r.next ? esc(r.next.name) + 'まで あと' + (r.next.min - S.xp) : '最高位です'}</span>
@@ -504,7 +518,8 @@
     </section>
 
     <section class="seat-pick" aria-labelledby="seat-h">
-      <h2 id="seat-h" class="seat-q">いま、頭の中は？</h2>
+      <div class="seat-head"><h2 id="seat-h" class="seat-q">いま、頭の中は？</h2>
+        ${CORE.openHitoiki ? '<button class="hitoiki-btn" data-act="sjStart" data-id="hitoiki"><b>まず、ひと呼吸</b><small>10秒</small></button>' : ''}</div>
       <div class="seat-btns">
         <button class="seat seat-tsukkomi" data-act="startManzai">
           <span class="seat-k">はっきりしたセリフが浮かんでいる</span>
@@ -515,6 +530,11 @@
           <span class="seat-k">もやもや・ぐるぐるしている</span>
           <span class="seat-t">ながめる席へ</span>
           <span class="seat-s">ながめ席</span>
+        </a>
+        <a class="seat seat-shijima" href="#shijima">
+          <span class="seat-k">わりと静か・いい感じ。少しだけ考えにとらわれている</span>
+          <span class="seat-t">ひたる席へ</span>
+          <span class="seat-s">しじま</span>
         </a>
       </div>
     </section>
@@ -574,6 +594,12 @@
           <span class="act-desc">ちいさなしくじりを、10年後の笑い話に。今日の「おかしみ」拾いも。世界は、あなたの相方</span></span>
           <span class="act-art act-art-tori" aria-hidden="true">${A.you('happy')}</span>
         </a></li>
+        <li class="hane"><a class="act act-hane" href="#shijima">
+          <span class="act-no hane-no">はね</span>
+          <span class="act-body"><span class="act-name">しじま</span>
+          <span class="act-desc">寄席がはねたあとの、静かな高座。ひと呼吸、余韻、あいだ、めくり。あなたは、寄席そのもの</span></span>
+          <span class="act-art act-art-hane" aria-hidden="true"><span class="hane-moon"></span></span>
+        </a></li>
       </ol>
     </section>
 
@@ -601,6 +627,8 @@
     hiroi: () => marked('game:hiroi'),
     mikuji: () => S.omikuji.some(o => o.done && isTodayISO(o.date)),
     okashi: () => ((S.hanashi || {}).okashi || []).some(o => isTodayISO(o.date)),
+    hitoiki: () => (((S.shijima || {}).breaths || {})[today()] || 0) >= 3,
+    shijima: () => ((S.shijima || {}).sessions || []).some(x => x.practice !== 'hitoiki' && isTodayISO(x.date)),
     manzai: () => S.scripts.some(x => isTodayISO(x.date)) || marked('neta')
   };
   function sandaiToday() {
@@ -1570,7 +1598,8 @@
     raiju: () => ({ cur: S.game && S.game.quiz && S.game.quiz.perfect ? 1 : 0, max: 1, unit: '回' }),
     nue: () => ({ cur: S.game && S.game.run && S.game.run.perfect ? 1 : 0, max: 1, unit: '回' }),
     hakutaku: () => ({ cur: DISTORTIONS.filter(y => S.yokai[y.id] && S.yokai[y.id].met > 0).length, max: DISTORTIONS.length, unit: '体' }),
-    kirin: () => ({ cur: LEGENDS.filter(y => y.id !== 'kirin' && S.legends && S.legends[y.id]).length, max: LEGENDS.length - 1, unit: '体' })
+    hakushi: () => ({ cur: Math.min(D.SHIJIMA.hakushiAt, ((S.shijima || {}).sessions || []).filter(x => x.practice !== 'hitoiki').length), max: D.SHIJIMA.hakushiAt, unit: '回' }),
+    kirin: () => ({ cur: LEGENDS.filter(y => y.id !== 'kirin' && y.id !== 'hakushi' && S.legends && S.legends[y.id]).length, max: LEGENDS.length - 2, unit: '体' })
   };
   const isGolden = id => !!(S.golden && S.golden[id]);
   function detectNew() {
@@ -1615,7 +1644,7 @@
       <div class="legend-flash" aria-hidden="true"></div>
       <div class="legend-rays" aria-hidden="true"></div>
       <div class="legend-body">
-        <p class="legend-k">${legend ? '伝説の妖怪が、あらわれた！' : 'なかよし度が最大に！'}</p>
+        <p class="legend-k">${legend ? esc(y.celebK || '伝説の妖怪が、あらわれた！') : 'なかよし度が最大に！'}</p>
         <div class="legend-art">${A.yokai(y.id, 'happy', { cls: legend ? 'is-legend' : 'is-golden' })}</div>
         ${legend ? `<p class="legend-title">${esc(y.title)}</p>` : ''}
         <h2 class="legend-name">${legend ? esc(y.name) : esc(y.name) + '<small>金色の姿</small>'}</h2>
@@ -1997,7 +2026,9 @@
       ['お題の福を見つけた', ((S.fuku || {}).finds || []).filter(x => inWeek(x.date)).length, 'こ'],
       ['今日の福を書いた', ((S.fuku || {}).goods || []).filter(x => inWeek(x.date)).length, 'こ'],
       ['行動おみくじをやってみた', S.omikuji.filter(o => inWeek(o.date)).length, '回'],
-      ['持ちネタを観た', Object.values(S.netaSeen || {}).filter(inWeek).length, '本']
+      ['持ちネタを観た', Object.values(S.netaSeen || {}).filter(inWeek).length, '本'],
+      ['意識的なひと呼吸', Object.entries((S.shijima || {}).breaths || {}).filter(([d]) => inWeek(d + 'T12:00:00')).reduce((a, [, n]) => a + n, 0), '回'],
+      ['しじまにひたった', ((S.shijima || {}).sessions || []).filter(x => x.practice !== 'hitoiki' && inWeek(x.date)).length, '回']
     ].filter(r => r[1] > 0);
     const ys = {};
     sc.forEach(s => s.yokai.forEach(id => { ys[id] = (ys[id] || 0) + 1; }));
@@ -2316,7 +2347,7 @@
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
     confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {}); S.draft = null; MZ = null;
+      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {}); S.shijima = Object.assign(fresh().shijima, p.shijima || {}); S.draft = null; MZ = null;
       save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
   };

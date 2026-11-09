@@ -365,6 +365,13 @@
       ${eyes([[27, 54], [42, 54]], 4.2, m, { lid: '#f4f1ea' })}
       <ellipse cx="34" cy="42" rx="4.5" ry="3.4" fill="${W}" stroke="${INK}" stroke-width="1.8"/><circle cx="34" cy="42" r="1.8" fill="#4a6fa5"/>`;
   };
+  DRAW.hakushi = function () { // 白紙のページ（図鑑の最後のページ。何も描かれていない）
+    return `<defs><radialGradient id="hkGlow" cx="50%" cy="50%" r="55%"><stop offset="0" stop-color="#fffbe8" stop-opacity=".9"/><stop offset="1" stop-color="#fffbe8" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="60" cy="60" r="57" fill="url(#hkGlow)"/>
+      <path d="M30 16 H80 L92 28 V104 H30 Z" fill="#fffdf6" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M80 16 V28 H92" fill="#efe8d6" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M40 44 H82 M40 58 H82 M40 72 H82 M40 86 H68" stroke="#ebe3cf" stroke-width="2" stroke-linecap="round"/>`;
+  };
   DRAW.nue = function (m) { // 鵺（猿の顔・狸の体・虎の手足・蛇の尾）
     return `
       <path d="M6 40 Q20 24 40 34 Q56 18 76 30 Q96 18 112 36 Q100 40 92 36 Q76 44 60 38 Q40 48 24 40 Q14 46 6 40 Z" fill="#3a3f5c" opacity=".55"/>

@@ -243,6 +243,7 @@
         <button class="btn btn-primary btn-block" type="submit">はじめる</button>
       </form>`, { label: p.name });
     }
+    K.ngOpen = id => { if (PR[id]) preSheet(id); }; // しじまの「ほかの入口」から
     function omakaseSheet(stateId) {
       const st = STATE_BY[stateId]; if (!st) return;
       UI.state = stateId;
