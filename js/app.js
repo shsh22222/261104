@@ -34,8 +34,8 @@
   const NAMES = ['ひよこ', 'こまめ', 'だんご', 'もなか', 'おもち', 'わかば', 'こはる', 'ちくわ', 'まめた', 'すずな'];
   function fresh() {
     return {
-      v: 1,
-      profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null, autoPlay: false, fontSize: 'normal' },
+      v: 2,
+      profile: { name: '', style: 'kansai', sound: true, voice: true, seenIntro: false, createdAt: new Date().toISOString(), lastVisit: null, autoPlay: false, fontSize: 'normal', lastBackup: null },
       netaSeen: {},
       xp: 0, scripts: [], yokai: {}, prophecies: [], omikuji: [], myActions: [], draft: null, mikujiNow: null,
       nagame: { kizuki: [], sessions: [], geso: [], gesoSeq: 0 },
@@ -48,23 +48,64 @@
   }
   let S = fresh();
   let storageOK = true;
+  // ---- 記録の形式（版）と移行。形式を変えるときは SCHEMA を上げ、MIGRATE に手順を足す ----
+  const SCHEMA = 2;
+  const MIGRATE = {
+    // 1 → 2：形式は同じ。版の番号だけをつける（第十回から）
+    2: p => p
+  };
+  function migrate(p) {
+    let v = typeof p.v === 'number' ? p.v : 1;
+    while (v < SCHEMA) { v += 1; if (MIGRATE[v]) p = MIGRATE[v](p) || p; }
+    p.v = SCHEMA;
+    return p;
+  }
+  // 読みこんだ記録を、いまの形にそろえる（起動時と「読み込む」で共通）
+  function hydrate(p) {
+    p = migrate(p);
+    const f = fresh();
+    const out = Object.assign(f, p);
+    ['profile', 'nagame', 'fuku', 'game', 'hanashi', 'shijima'].forEach(k => { out[k] = Object.assign(fresh()[k], p[k] || {}); });
+    ['scripts', 'omikuji', 'myActions', 'prophecies'].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
+    ['yokai', 'legends', 'golden', 'netaSeen'].forEach(k => { if (!out[k] || typeof out[k] !== 'object') out[k] = {}; });
+    if (typeof out.xp !== 'number') out.xp = 0;
+    out.v = SCHEMA;
+    return out;
+  }
+  const BAK = KEY + '.bak';
+  let loadProblem = null;
   function load() {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { storageOK = false; return; }
+    if (!raw) return;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const p = JSON.parse(raw);
-        S = Object.assign(fresh(), p);
-        S.profile = Object.assign(fresh().profile, p.profile || {});
-        S.nagame = Object.assign(fresh().nagame, p.nagame || {});
-        S.fuku = Object.assign(fresh().fuku, p.fuku || {});
-        S.game = Object.assign(fresh().game, p.game || {});
-        S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {});
-        S.shijima = Object.assign(fresh().shijima, p.shijima || {});
-      }
-    } catch (e) { storageOK = false; }
+      S = hydrate(JSON.parse(raw));
+    } catch (e) {
+      // 壊れた記録を上書きしないよう、別の名前で残してから、控え（前日の写し）があれば戻す
+      try { localStorage.setItem(KEY + '.broken-' + Date.now(), raw); } catch (e2) { /* noop */ }
+      loadProblem = 'broken';
+      try { const b = JSON.parse(localStorage.getItem(BAK) || 'null'); if (b && b.data) { S = hydrate(b.data); loadProblem = 'restored'; } } catch (e3) { /* noop */ }
+    }
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; } catch (e) { storageOK = false; }
+  }
+  // 1日1回、その日はじめて開いたときの記録を、控えとして写しておく（不具合で記録が壊れたときの保険）
+  function snapshot() {
+    try {
+      const b = JSON.parse(localStorage.getItem(BAK) || 'null');
+      if (b && b.date === today()) return;
+      if (!localStorage.getItem(KEY)) return;
+      localStorage.setItem(BAK, JSON.stringify({ date: today(), data: JSON.parse(localStorage.getItem(KEY)) }));
+    } catch (e) { /* noop */ }
+  }
+  function backupInfo() { try { const b = JSON.parse(localStorage.getItem(BAK) || 'null'); return b && b.date ? b : null; } catch (e) { return null; } }
+  // 控えを残す価値が出てきたのに、しばらく書き出していないか
+  function backupDue() {
+    const n = S.scripts.length + ((S.fuku || {}).goods || []).length + ((S.nagame || {}).sessions || []).length + ((S.hanashi || {}).stories || []).length;
+    if (n < 10) return false;
+    const last = S.profile.lastBackup ? new Date(S.profile.lastBackup).getTime() : 0;
+    return Date.now() - last > 14 * 864e5;
   }
 
   // ============ 音（Web Audio で合成） ============
@@ -495,6 +536,8 @@
     const seki = h < 5 ? '深夜席' : h < 11 ? '朝席' : h < 17 ? '昼席' : '夜席';
     return `
     ${!storageOK ? `<p class="notice">この画面では記録を保存できません（プライベートモードなど）。閉じると記録は消えます。</p>` : ''}
+    ${loadProblem === 'restored' ? '<p class="notice">記録の読みこみで問題が起きたため、前日の控えに戻しました。もとの記録も、端末の中に別の名前で残してあります。</p>' : loadProblem === 'broken' ? '<p class="notice">記録を読みこめませんでした。もとの記録は、端末の中に別の名前で残してあります。楽屋の「読み込む」で、控えから戻せます。</p>' : ''}
+    ${backupDue() ? '<a class="notice notice-link" href="#gakuya">記録がたまってきました。ときどき楽屋の「書き出す」で控えをとっておくと安心です。</a>' : ''}
     ${welcomeBack ? `<p class="okaeri">おかえりなさい。間があいても大丈夫。ここは毎晩開いています。</p>` : ''}
     <section class="hero" aria-label="今夜のあなた">
       <div class="mekuri" aria-label="めくり ${esc(r.name)} ${esc(S.profile.name)}">
@@ -517,6 +560,7 @@
       </div>
     </section>
 
+    ${draft ? '<button class="resume-draft" data-act="startManzai"><span>書きかけのネタがあります</span><b>続きから</b></button>' : ''}
     <section class="seat-pick" aria-labelledby="seat-h">
       <div class="seat-head"><h2 id="seat-h" class="seat-q">いま、頭の中は？</h2>
         ${CORE.openHitoiki ? '<button class="hitoiki-btn" data-act="sjStart" data-id="hitoiki"><b>まず、ひと呼吸</b><small>10秒</small></button>' : ''}</div>
@@ -537,14 +581,15 @@
           <span class="seat-s">しじま</span>
         </a>
       </div>
+      <button class="quick-btn" data-act="quickStart"><b>一言漫才</b><span>時間がないときは、60秒でツッコむ</span></button>
     </section>
 
     ${sandaiCard()}
 
     ${timeCard()}
 
-    <section class="bangumi" aria-labelledby="bangumi-h">
-      <h2 id="bangumi-h" class="sec-title"><span>本日の番組</span></h2>
+    <details class="bangumi bangumi-fold"${S.profile.programOpen ? ' open' : ''}>
+      <summary class="bangumi-sum" data-act="programFold"><span class="bangumi-sum-t">番組表</span><span class="bangumi-sum-s">すべての演目（${PROGRAM_COUNT}）</span></summary>
       <ol class="program">
         <li><button class="act act-main" data-act="startManzai">
           <span class="act-no">一</span>
@@ -601,12 +646,15 @@
           <span class="act-art act-art-hane" aria-hidden="true"><span class="hane-moon"></span></span>
         </a></li>
       </ol>
-    </section>
+    </details>
 
     <aside class="kobanashi" aria-label="今日の小噺"><p class="kobanashi-k">今日の小噺</p><p class="kobanashi-t">${esc(tip)}</p></aside>
     ${S.scripts.length === 0 ? `<section class="first-show"><p>はじめての方は、まず見本の漫才をどうぞ。1分で終わります。</p><div class="btn-row"><button class="btn btn-ghost" data-act="playSample">見本の漫才を観る</button><button class="btn btn-ghost" data-act="daihonOpen">台本のしくみを読む</button></div></section>` : ''}
     `;
   };
+
+  const PROGRAM_COUNT = 9;
+  ACT.programFold = el => { const d = el.closest('details'); S.profile.programOpen = !(d && d.open); save(); };
 
   // ============ 第八回：今日の三題噺（毎日かわる三つのお題。連続記録はつけない） ============
   function mark(key) {
@@ -837,6 +885,7 @@
     ${scaleHtml({ id: 'emoBefore', label: 'その気分の強さ', type: 'p100', value: m.emoBefore, bind: 'emoBefore' })}
     ${measureSwitch()}
     <p class="muted small measure-note">気持ちに名前をつけるだけでも、少し扱いやすくなります。数字は、めんどうな日は「なし」で大丈夫。</p>
+    <button class="detour detour-quick" data-act="quickStart"><span class="detour-k">時間がないときは</span><span class="detour-t">一言漫才（60秒）にする</span></button>
     <a class="detour" href="#nagame"><span class="detour-k">はっきりした出来事や考えがないときは</span><span class="detour-t">ながめ席で、ただ眺める</span></a>
     ${wizNav(0, '次へ', !m.emotion)}`;
   }
@@ -1359,6 +1408,115 @@
     if (!sc.gentle) Sfx.chime();
     render('manzai');
   };
+
+  // ============ 第十回：一言漫才（60秒。ボケを一行 → 妖怪は自動で鑑定 → ツッコミは選ぶだけ → 上演） ============
+  let QM = null;
+  const QUICK_OCHI = [
+    'そう思ってしまうのも無理はない。でも、それは考えのひとつ。',
+    'NAMEが、また言ってる。いまは、それくらいにしておこう。',
+    '完璧じゃなくても、今日はここまでで十分。'
+  ];
+  function quickBody() {
+    const q = QM;
+    if (q.step === 0) {
+      return `<div class="quick">
+        <p class="eyebrow">一言漫才・60秒</p>
+        <h2 class="sheet-title">頭に浮かんだセリフを、一行で</h2>
+        <textarea id="qmThought" rows="2" maxlength="120" placeholder="例：どうせ、みんなに嫌われてる" data-bind="qmThought">${esc(q.thought)}</textarea>
+        <div class="examples"><span class="examples-k">例から選ぶ</span>${D.EXAMPLE_THOUGHTS.slice(0, 4).map((t, i) => `<button class="chip chip-sm" data-act="qmEx" data-i="${i}">${esc(t)}</button>`).join('')}</div>
+        <button class="btn btn-primary btn-block" id="qmNext" data-act="qmNext"${q.thought.trim().length < 2 ? ' disabled' : ''}>鑑定する</button>
+        <p class="muted small">じっくり書きたいときは、ふつうの妖怪漫才（6ステップ）でどうぞ。</p>
+      </div>`;
+    }
+    const y = D.yokaiById[q.yokai];
+    if (q.step === 1) {
+      return `<div class="quick">
+        <p class="eyebrow">一言漫才・鑑定</p>
+        <div class="quick-y">${A.yokai(y.id, 'smug')}<div><p class="quick-y-k">このボケは……</p><p class="quick-y-n">${esc(y.name)}<small>${esc(y.distortion)}</small></p><p class="muted small">${esc(y.sign)}</p></div></div>
+        <details class="quick-other"><summary>ちがう妖怪にする</summary><div class="chips">${DISTORTIONS.map(d => `<button class="chip chip-sm${d.id === y.id ? ' on' : ''}" data-act="qmYokai" data-id="${d.id}">${esc(d.name)}</button>`).join('')}</div></details>
+        <p class="quick-k">ツッコミを、ひとつ選ぶ</p>
+        <div class="quick-tk">${y.weak.slice(0, 3).map(id => { const T = D.tsukkomiById[id]; return `<button class="quick-tk-b${q.tk === id ? ' on' : ''}" data-act="qmTk" data-id="${id}"><b>${esc(tkLine(T))}</b><small>${esc(T.tech)}</small></button>`; }).join('')}</div>
+        ${q.tk ? `<label for="qmAns" class="quick-q">${esc(D.tsukkomiById[q.tk].q)} <span class="opt">書かなくてもOK</span></label>
+          <input type="text" id="qmAns" maxlength="80" value="${esc(q.ans)}" data-bind="qmAns" autocomplete="off">` : ''}
+        <button class="btn btn-primary btn-block" data-act="qmNext"${q.tk ? '' : ' disabled'}>オチへ</button>
+      </div>`;
+    }
+    const cands = QUICK_OCHI.map(t => t.replace('NAME', y.name));
+    if (q.ans.trim()) cands.unshift('たしかに、そう思ってしまう。でも、' + q.ans.trim().replace(/[。]$/, '') + '。');
+    return `<div class="quick">
+      <p class="eyebrow">一言漫才・オチ</p>
+      <h2 class="sheet-title">言い直しを、ひとつ</h2>
+      <div class="quick-ochi">${cands.map((t, i) => `<button class="quick-ochi-b${q.ochi === t ? ' on' : ''}" data-act="qmOchi" data-i="${i}">${esc(t)}</button>`).join('')}</div>
+      <label for="qmOchiIn" class="quick-q">自分のことばで <span class="opt">選んだものを直してもOK</span></label>
+      <textarea id="qmOchiIn" rows="2" maxlength="160" data-bind="qmOchi">${esc(q.ochi)}</textarea>
+      <button class="btn btn-primary btn-block" id="qmGo" data-act="qmGo"${q.ochi.trim().length < 2 ? ' disabled' : ''}>いざ、上演！</button>
+    </div>`;
+  }
+  function quickRender() { const b = sheetBody(); if (b && QM) b.innerHTML = quickBody(); }
+  ACT.quickStart = () => {
+    QM = { step: 0, thought: '', yokai: null, tk: null, ans: '', ochi: '', cands: [] };
+    openSheet(quickBody(), { label: '一言漫才', cls: 'sheet-quick' });
+    setTimeout(() => { const t = $('#qmThought'); if (t) t.focus(); }, 120);
+  };
+  BIND.qmThought = el => { if (!QM) return; QM.thought = el.value; const b = $('#qmNext'); if (b) b.disabled = el.value.trim().length < 2; };
+  BIND.qmAns = el => { if (QM) QM.ans = el.value; };
+  BIND.qmOchi = el => { if (!QM) return; QM.ochi = el.value; const b = $('#qmGo'); if (b) b.disabled = el.value.trim().length < 2; $$('.quick-ochi-b').forEach(x => x.classList.toggle('on', x.textContent === el.value)); };
+  ACT.qmEx = el => { if (!QM) return; QM.thought = D.EXAMPLE_THOUGHTS[+el.dataset.i]; quickRender(); };
+  ACT.qmNext = () => {
+    if (!QM) return;
+    if (QM.step === 0) {
+      if (isRisky(QM.thought)) { closeSheet(); QM = null; openSos(); return; }
+      const sug = suggest(QM.thought);
+      QM.yokai = sug[0] || 'kudan';
+      QM.step = 1;
+    } else if (QM.step === 1) {
+      if (!QM.tk) return;
+      if (isRisky(QM.ans)) { closeSheet(); QM = null; openSos(); return; }
+      QM.step = 2;
+    }
+    quickRender();
+  };
+  ACT.qmYokai = el => { if (!QM) return; QM.yokai = el.dataset.id; QM.tk = null; QM.ans = ''; quickRender(); };
+  ACT.qmTk = el => {
+    if (!QM) return;
+    const a = $('#qmAns'); if (a) QM.ans = a.value;
+    QM.tk = el.dataset.id; quickRender();
+    setTimeout(() => { const i = $('#qmAns'); if (i) i.focus({ preventScroll: true }); }, 50);
+  };
+  ACT.qmOchi = el => {
+    if (!QM) return;
+    const t = $$('.quick-ochi-b')[+el.dataset.i]; if (!t) return;
+    QM.ochi = t.textContent;
+    const ta = $('#qmOchiIn'); if (ta) ta.value = QM.ochi;
+    $$('.quick-ochi-b').forEach(x => x.classList.toggle('on', x === t));
+    const b = $('#qmGo'); if (b) b.disabled = false;
+  };
+  ACT.qmGo = () => {
+    const q = QM; if (!q || q.ochi.trim().length < 2) return;
+    if (isRisky(q.ochi)) { closeSheet(); QM = null; openSos(); return; }
+    const T = D.tsukkomiById[q.tk];
+    const sc = {
+      id: uid(), date: new Date().toISOString(), quick: true, emotion: null, emoBefore: null, emoAfter: null,
+      situation: '', thought: q.thought.trim(), beliefBefore: null, beliefAfter: null, yokai: [q.yokai],
+      tk: [{ id: q.tk, a: q.ans.trim() || T.tech + 'で、考えてみた。' }], newThought: q.ochi.trim(), gentle: false, fx: '', replays: 0
+    };
+    QM = null;
+    closeSheet();
+    startPerformance(sc, { onEnd: () => saveQuick(sc) });
+  };
+  function saveQuick(sc) {
+    S.scripts.unshift(sc);
+    const unlocked = [];
+    const r = S.yokai[sc.yokai[0]] || (S.yokai[sc.yokai[0]] = { met: 0, friend: 0 });
+    const before = r.friend;
+    r.met += 1; r.friend = Math.min(5, r.friend + 1);
+    if (before < 3 && r.friend >= 3) unlocked.push(sc.yokai[0]);
+    const rankUp = addXP(D.XP.quick);
+    RESULT = { id: sc.id, unlocked, rankUp, xp: D.XP.quick };
+    save();
+    Sfx.chime();
+    if (current === 'manzai') render('manzai'); else go('manzai');
+  }
 
   // ---- 入力のひもづけ ----
   BIND.emoBefore = el => { mz().emoBefore = +el.value; saveDraftSoon(); };
@@ -2273,10 +2431,12 @@
     <section class="panel" aria-labelledby="g-data-h">
       <h2 id="g-data-h" class="panel-title">記録</h2>
       <p>記録はすべて、この端末のブラウザの中だけに保存されます。どこにも送信されません。</p>
+      <p class="note-card">そのかわり、<strong>ブラウザのデータを消したり、別の端末に変えたりすると、記録は消えます</strong>。ときどき「書き出す」で控えをとって、メモアプリなどにしまっておいてください。${S.profile.lastBackup ? `最後に控えをとった日：${fmtMD(S.profile.lastBackup)}` : 'まだ控えをとっていません。'}</p>
       <div class="btn-col">
         ${window.KY_PWA ? '<button class="btn btn-ghost" data-act="saveFile">記録をファイルで保存</button>' : ''}
         <button class="btn btn-ghost" data-act="exportData">記録を書き出す（コピー）</button>
         <button class="btn btn-ghost" data-act="importData">記録を読み込む</button>
+        ${backupInfo() ? `<button class="btn btn-ghost" data-act="restoreBak">${fmtMD(backupInfo().date)}の控えに戻す（不具合のときに）</button>` : ''}
         <button class="btn btn-ghost danger-text" data-act="wipeData">すべての記録を消す</button>
       </div>
     </section>
@@ -2317,7 +2477,8 @@
 
   ACT.saveFile = () => {
     try {
-      const blob = new Blob([JSON.stringify(Object.assign({}, S, { draft: null }), null, 1)], { type: 'application/json' });
+      const blob = new Blob([exportJson(1)], { type: 'application/json' });
+      markBackup();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = 'kokoro-yose-' + today() + '.json';
@@ -2327,14 +2488,22 @@
     } catch (e) { toast('この環境ではファイルを保存できません。「コピー」を使ってください'); }
   };
 
+  const exportJson = space => JSON.stringify({ app: 'kokoro-yose', schema: SCHEMA, exportedAt: new Date().toISOString(), data: Object.assign({}, S, { draft: null }) }, null, space);
+  function markBackup() { S.profile.lastBackup = new Date().toISOString(); save(); }
   ACT.exportData = () => {
-    const json = JSON.stringify(Object.assign({}, S, { draft: null }), null, 1);
+    const json = exportJson(1);
     openSheet(`<div class="form"><h2 class="sheet-title">記録を書き出す</h2>
       <p class="muted small">下の文字をコピーして、メモアプリなどに保存してください。「読み込む」で元に戻せます。</p>
       <textarea id="exportBox" rows="8" readonly>${esc(json)}</textarea>
       <button class="btn btn-primary btn-block" data-act="copyExport">コピーする</button></div>`, { label: '書き出し' });
   };
-  ACT.copyExport = () => copyText($('#exportBox').value, $('#exportBox'));
+  ACT.copyExport = () => { copyText($('#exportBox').value, $('#exportBox')); markBackup(); };
+  ACT.restoreBak = () => {
+    const b = backupInfo(); if (!b) { toast('控えがまだありません'); return; }
+    confirmSheet(fmtMD(b.date) + 'の控えに戻します。それ以降の記録は消えます。よろしいですか？', '控えに戻す', () => {
+      try { S = hydrate(b.data); S.draft = null; MZ = null; save(); applyFont(); closeAllSheets(); rerender(); toast(fmtMD(b.date) + 'の控えに戻しました'); } catch (e) { toast('控えを読めませんでした'); }
+    });
+  };
   ACT.importData = () => {
     openSheet(`<form class="form" data-form="importData"><h2 class="sheet-title">記録を読み込む</h2>
       <p class="muted small">保存したファイルを選ぶか、書き出した文字を貼りつけてください。いまの記録は置き換わります。</p>
@@ -2345,9 +2514,14 @@
   FORM.importData = f => {
     let p;
     try { p = JSON.parse($('#importBox', f).value); } catch (e) { toast('読み込めませんでした。書き出した文字をそのまま貼りつけてください。'); return; }
+    if (p && p.app === 'kokoro-yose' && p.data) p = p.data; // 第十回からの書き出し形式
     if (!p || !Array.isArray(p.scripts) || !p.profile) { toast('ココロ寄席の記録ではないようです'); return; }
-    confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？', '置き換える', () => {
-      S = Object.assign(fresh(), p); S.profile = Object.assign(fresh().profile, p.profile); S.nagame = Object.assign(fresh().nagame, p.nagame || {}); S.fuku = Object.assign(fresh().fuku, p.fuku || {}); S.game = Object.assign(fresh().game, p.game || {}); S.hanashi = Object.assign(fresh().hanashi, p.hanashi || {}); S.shijima = Object.assign(fresh().shijima, p.shijima || {}); S.draft = null; MZ = null;
+    if (typeof p.v === 'number' && p.v > SCHEMA) { toast('新しい版のアプリで書き出した記録です。アプリを新しくしてから読み込んでください'); return; }
+    confirmSheet('いまの記録を、貼りつけた記録で置き換えます。よろしいですか？（置き換える前の記録は、控えとして残します）', '置き換える', () => {
+      try { localStorage.setItem(BAK, JSON.stringify({ date: today(), data: JSON.parse(JSON.stringify(S)), before: 'import' })); } catch (e) { /* noop */ }
+      const prevBackup = S.profile.lastBackup;
+      S = hydrate(p); S.draft = null; MZ = null;
+      if (prevBackup && (!S.profile.lastBackup || prevBackup > S.profile.lastBackup)) S.profile.lastBackup = prevBackup;
       save(); applyFont(); closeAllSheets(); rerender(); toast('読み込みました');
     });
   };
@@ -2515,6 +2689,7 @@
   // ============ 開演 ============
   function boot() {
     load();
+    if (!loadProblem) snapshot();
     const last = S.profile.lastVisit ? new Date(S.profile.lastVisit) : null;
     welcomeBack = !!(last && Date.now() - last.getTime() > 3 * 864e5);
     S.profile.lastVisit = new Date().toISOString();

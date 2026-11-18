@@ -567,7 +567,7 @@
     { min: 500, name: '名人' }
   ];
 
-  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3, game: 5, hanashi: 12, okashi: 2, shijima: 6, hitoiki: 1 };
+  const XP = { manzai: 15, omikujiDone: 8, nagame: 10, geso: 5, gesoBack: 8, kizuki: 1, fukuFind: 2, fukuGood: 10, savor: 3, game: 5, hanashi: 12, okashi: 2, shijima: 6, hitoiki: 1, quick: 8 };
 
   // ---------- 大喜利（ゲームモード） ----------
   const GAME = {

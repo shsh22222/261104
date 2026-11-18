@@ -2450,7 +2450,7 @@ html.fs-large { font-size: 112.5%; }
 .gc-art-egao { display: grid; grid-template-columns: repeat(2, 40px); gap: 4px; place-content: center; }
 .gc-art-egao .eg-svg { width: 40px; height: 40px; }
 .game-egao { background: radial-gradient(120% 80% at 50% 0%, #3a2410 0%, var(--stage-bg) 62%); }
-.egao-wrap { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px 16px; max-width: 30rem; margin: 0 auto; width: 100%; min-height: 0; }
+.egao-wrap { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px 16px; max-width: 30rem; margin: 0 auto; width: 100%; min-height: 0; overflow: hidden; }
 .egao-guide { text-align: center; font-weight: 700; font-size: var(--t-sm); color: var(--stage-glow); }
 .egao-grid { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 6px; align-content: center; flex: 1; min-height: 0; }
 .egao-grid.in { animation: rise .25s ease both; }
@@ -2617,6 +2617,44 @@ html.fs-large { font-size: 112.5%; }
 .sj-end-close { font-size: var(--t-sm); color: var(--sj-muted); }
 .sj-up { font-size: var(--t-sm); font-weight: 700; color: var(--sj-glow); }
 .sj-pre .note-card { margin: 0; }
+
+/* ---------- 第十回：引き算と土台 ---------- */
+.notice-link { display: block; text-decoration: none; }
+.notice-link::after { content: " →"; font-weight: 700; }
+.resume-draft { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; border: 1.5px dashed var(--kaki); background: var(--kaki-soft); color: var(--fg); border-radius: var(--r); padding: 10px 14px; min-height: 48px; font: inherit; font-size: var(--t-sm); cursor: pointer; text-align: left; }
+.resume-draft b { color: var(--kaki); white-space: nowrap; }
+.resume-draft b::after { content: " →"; }
+.quick-btn { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; width: 100%; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: var(--r); padding: 10px 14px; min-height: 48px; font: inherit; cursor: pointer; text-align: left; }
+.quick-btn b { font-family: var(--f-display); font-weight: 400; font-size: var(--t-md); color: var(--kaki); }
+.quick-btn span { font-size: var(--t-xs); color: var(--muted); }
+button.detour { width: 100%; font: inherit; text-align: left; cursor: pointer; }
+.bangumi-fold { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 0 12px; }
+.bangumi-fold[open] { padding-bottom: 12px; }
+.bangumi-sum { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-height: 52px; padding: 12px 2px; }
+.bangumi-sum::-webkit-details-marker { display: none; }
+.bangumi-sum-t { font-family: var(--f-display); font-size: var(--t-lg); letter-spacing: .06em; }
+.bangumi-sum-s { font-size: var(--t-xs); color: var(--muted); }
+.bangumi-sum-s::after { content: " ▼"; }
+.bangumi-fold[open] .bangumi-sum-s::after { content: " ▲"; }
+/* 一言漫才 */
+.quick { display: flex; flex-direction: column; gap: 12px; }
+.quick textarea, .quick input[type="text"] { width: 100%; }
+.quick-y { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: center; background: var(--yokai-paper); color: var(--paper-ink); border-radius: var(--r); padding: 10px 12px; }
+.quick-y svg { width: 84px; height: 84px; }
+.quick-y-k { font-size: var(--t-xs); color: var(--paper-muted); }
+.quick-y-n { font-family: var(--f-display); font-size: var(--t-xl); line-height: 1.2; }
+.quick-y-n small { display: block; font-family: var(--f-body); font-size: var(--t-xs); color: var(--paper-muted); }
+.quick-y .muted { color: var(--paper-muted); }
+.quick-other summary { cursor: pointer; font-size: var(--t-sm); color: var(--moegi); font-weight: 700; min-height: 36px; display: flex; align-items: center; }
+.quick-other[open] { display: flex; flex-direction: column; gap: 8px; }
+.quick-k { font-weight: 700; }
+.quick-tk, .quick-ochi { display: flex; flex-direction: column; gap: 8px; }
+.quick-tk-b, .quick-ochi-b { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; cursor: pointer; min-height: 52px; }
+.quick-tk-b b { font-family: var(--f-display); font-weight: 400; color: var(--kaki); font-size: var(--t-md); }
+.quick-tk-b small { font-size: var(--t-xs); color: var(--muted); }
+.quick-ochi-b { font-size: var(--t-sm); font-weight: 700; }
+.quick-tk-b.on, .quick-ochi-b.on { border-color: var(--kaki); background: var(--kaki-soft); }
+.quick-q { font-size: var(--t-sm); font-weight: 700; }
 
 /* ---------- 動き ---------- */
 @keyframes pop {
