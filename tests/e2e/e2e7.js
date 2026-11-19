@@ -162,7 +162,7 @@ const KEY = 'kokoro-yose.v1';
     }
     if (!sawFx) errors.push(tag + ' funya not carried to stage');
     await p.waitForTimeout(300);
-    await p.$eval('#beliefAfter', el => { el.value = 40; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await p.$eval('#ochiFit', el => { el.value = 80; el.dispatchEvent(new Event('input', { bubbles: true })); });
     await p.click('[data-act="mzSave"]');
     await p.waitForTimeout(400);
     const hl = await p.$('.hanashi-link');
@@ -225,12 +225,12 @@ const KEY = 'kokoro-yose.v1';
     }
     if (!ochiShot) errors.push(tag + ' ochi line not shown');
     await p.waitForTimeout(300);
-    if (!(await p.$('#hnWa'))) errors.push(tag + ' after-weight step missing');
-    await p.$eval('#hnWa', el => { el.value = 25; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    if (!(await p.$('[data-act="hnTalk"]'))) errors.push(tag + ' after step (talk) missing');
+    await p.click('[data-act="hnTalk"][data-id="warai"]');
     await p.click('[data-act="hnSave"]');
     await p.waitForTimeout(400);
     const res = await p.textContent('.hn-result').catch(() => '');
-    if (!res.includes('50') || !res.includes('25')) errors.push(tag + ' result ' + res);
+    if (!res.includes('笑って話せる') || !res.includes('ほほえましい一コマ') || /重さ/.test(res)) errors.push(tag + ' result ' + res);
     // ボケ拾い
     for (let i = 0; i < 3; i++) {
       await p.fill('#okT', ['「とまれ」の看板が傾いていた', '猫が箱からはみ出して寝ていた', '自分でメガネをかけたまま探していた'][i]);

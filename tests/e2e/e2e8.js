@@ -56,12 +56,13 @@ const KEY = 'kokoro-yose.v1';
     }
     await p.waitForTimeout(300);
     if (mode === 'tap') {
-      await p.click('fieldset#beliefAfter label:nth-child(2)');
-      const was = await p.textContent('fieldset#beliefAfter .was');
-      if (!was.includes('本気')) errors.push(tag + ' was label ' + was);
+      await p.click('fieldset#ochiFit label:nth-child(4)');
+      await p.click('[data-act="mzMood"][data-id="hotto"]');
     } else {
-      await p.click('[data-act="mzLighter"][data-v="2"]');
+      if (await p.$('#ochiFit')) errors.push(tag + ' fit scale should be hidden in off');
+      await p.click('[data-act="mzMood"][data-id="sukkiri"]');
     }
+    if (await p.$('#beliefAfter, #emoAfter')) errors.push(tag + ' old after-questions should be gone');
     await shot(p, tag + '-rate');
     await p.click('[data-act="mzSave"]');
     await p.waitForTimeout(400);
@@ -111,10 +112,10 @@ const KEY = 'kokoro-yose.v1';
 
   // ---- 妖怪漫才：ワンタップ ----
   const d1 = await manzai(p, 'a-03-tap', 'tap');
-  if (!d1.includes('信じ度')) errors.push('tap done should show belief bars');
+  if (!d1.includes('今日のオチ') || !d1.includes('しっくり度') || !d1.includes('ほっと')) errors.push('tap done should show ochi, fit, mood');
   let s1 = await state(p);
   notes.push('tap script belief ' + s1.scripts[0].beliefBefore + '->' + s1.scripts[0].beliefAfter + ' emo ' + s1.scripts[0].emoBefore);
-  if (s1.scripts[0].beliefBefore !== 95 || s1.scripts[0].beliefAfter !== 30 || s1.scripts[0].emoBefore !== 70) errors.push('tap values ' + JSON.stringify(s1.scripts[0]));
+  if (s1.scripts[0].beliefBefore !== 95 || s1.scripts[0].beliefAfter !== null || s1.scripts[0].emoBefore !== 70 || s1.scripts[0].ochiFit !== 70 || s1.scripts[0].moodAfter !== 'hotto') errors.push('tap values ' + JSON.stringify(s1.scripts[0]));
 
   // ---- 記録を「なし」に（気分の画面から切りかえ） ----
   await p.goto(BASE + '#home'); await p.waitForTimeout(200);
@@ -123,10 +124,10 @@ const KEY = 'kokoro-yose.v1';
   await p.click('[data-act="mzQuit"]'); await p.waitForTimeout(300);
   const qd = await p.$('[data-act="mzQuitDrop"]'); if (qd) { await qd.click(); await p.waitForTimeout(300); }
   const d2 = await manzai(p, 'a-04-off', 'off');
-  if (d2.includes('信じ度')) errors.push('off done should not show bars');
-  if (!d2.includes('だいぶ軽く')) errors.push('off done lighter message missing');
+  if (d2.includes('しっくり度')) errors.push('off done should not show fit');
+  if (!d2.includes('すっきり')) errors.push('off done mood missing');
   s1 = await state(p);
-  if (s1.scripts[0].beliefBefore !== null || s1.scripts[0].lighter !== 2) errors.push('off values ' + JSON.stringify({ b: s1.scripts[0].beliefBefore, l: s1.scripts[0].lighter }));
+  if (s1.scripts[0].beliefBefore !== null || s1.scripts[0].moodAfter !== 'sukkiri' || s1.scripts[0].ochiFit !== undefined) errors.push('off values ' + JSON.stringify({ b: s1.scripts[0].beliefBefore, m: s1.scripts[0].moodAfter, f: s1.scripts[0].ochiFit }));
   await p.goto(BASE + '#neta'); await p.waitForTimeout(300);
   await shot(p, 'a-05-neta', true);
   // ワンタップにもどす（楽屋）

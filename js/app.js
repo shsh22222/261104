@@ -385,7 +385,9 @@
     p100: { min: 0, max: 100, step: 5, ends: ['かすか', 'いっぱい'], lv: [[10, 'かすか'], [30, 'すこし'], [50, 'そこそこ'], [70, 'かなり'], [90, 'いっぱい']] },
     belief: { min: 0, max: 100, step: 5, unit: '%', ends: ['ぜんぜん', '100%本気'], lv: [[10, 'ぜんぜん'], [30, 'すこし'], [50, '半々'], [70, 'かなり'], [95, '本気']] },
     zawa: { min: 0, max: 10, step: 1, ends: ['0 しずか', '10 とてもざわざわ'], lv: [[1, 'しずか'], [3, 'すこし'], [5, 'そこそこ'], [7, 'かなり'], [9, 'とても']] },
+    ima: { min: 0, max: 10, step: 1, ends: ['0 しずか', '10 まだざわざわ'], lv: [[1, 'しずか'], [3, 'おちついた'], [5, 'ふつう'], [7, 'すこしそわそわ'], [9, 'まだざわざわ']] },
     weight: { min: 0, max: 100, step: 5, ends: ['かるい', 'ずっしり'], lv: [[10, 'かるい'], [30, 'ちょっと'], [50, 'ふつう'], [70, 'おもい'], [90, 'ずっしり']] },
+    fit: { min: 0, max: 100, step: 5, unit: '%', ends: ['ぜんぜん', 'ぴったり'], lv: [[10, 'ぜんぜん'], [30, 'すこし'], [50, 'まあまあ'], [70, 'しっくり'], [95, 'ぴったり']] },
     mood10: { min: 0, max: 10, step: 1, ends: ['0 変わらない', '10 すごく上がる'], lv: [[0, '変わらない'], [3, 'すこし'], [5, 'そこそこ'], [7, 'かなり'], [10, 'すごく']] }
   };
   const measureMode = () => (['tap', 'slider', 'off'].includes(S.profile.measure) ? S.profile.measure : 'tap');
@@ -1139,24 +1141,33 @@
   };
 
   function mzRate(m) {
-    const emo = D.emotionById[m.emotion] || { label: '気分' };
     return `<div class="wiz-head"><span class="eyebrow">終演</span></div>
-    <h1 class="wiz-title">おつかれさまでした</h1>
-    <p class="wiz-lead">上演してみて、いまはどうですか。感じたままで大丈夫です。</p>
-    <blockquote class="boke-quote">「${esc(m.thought)}」</blockquote>
-    ${measureMode() === 'off' ? `<fieldset class="field"><legend>上演してみて、セリフの重さは？ <span class="opt">選ばなくてもOK</span></legend>
-      <div class="chips" role="group" aria-label="セリフの重さ">${[[0, '変わらない'], [1, 'すこし軽い'], [2, 'だいぶ軽い']].map(([v, l]) =>
-        `<button class="chip${m.lighter === v ? ' on' : ''}" aria-pressed="${m.lighter === v}" data-act="mzLighter" data-v="${v}">${l}</button>`).join('')}</div></fieldset>`
-      : `${scaleHtml({ id: 'beliefAfter', label: 'このセリフ、いまはどれくらい信じてる？', type: 'belief', value: m.beliefAfter, bind: 'beliefAfter', was: '上演前は ' + scaleLabel('belief', m.beliefBefore) })}
-    ${scaleHtml({ id: 'emoAfter', label: '「' + emo.label + '」の強さは？', type: 'p100', value: m.emoAfter, bind: 'emoAfter', was: '上演前は ' + scaleLabel('p100', m.emoBefore) })}`}
-    <fieldset class="field belief-field"><legend>このボケの奥にあったのは？ <span class="opt">選ばなくてもOK</span></legend>
+    <h1 class="wiz-title">お見事でした</h1>
+    <p class="wiz-lead">今日のオチは、これ。</p>
+    <blockquote class="ochi-quote">「${esc(m.newThought)}」</blockquote>
+    ${scaleHtml({ id: 'ochiFit', label: 'このオチ、どれくらいしっくりくる？', type: 'fit', value: m.ochiFit, bind: 'ochiFit' })}
+    <fieldset class="field"><legend>いまの気分に名前をつけるなら？ <span class="opt">選ばなくてもOK</span></legend>
+      <div class="chips" role="group" aria-label="いまの気分">${MOOD_AFTER.map(x =>
+        `<button class="chip${m.moodAfter === x.id ? ' on' : ''}" aria-pressed="${m.moodAfter === x.id}" data-act="mzMood" data-id="${x.id}">${esc(x.label)}</button>`).join('')}</div></fieldset>
+    <details class="belief-fold"${m.belief ? ' open' : ''}><summary>ふりかえり（任意）：ボケの奥にあったもの</summary>
+    <fieldset class="field belief-field"><legend class="sr-only">このボケの奥にあったのは？</legend>
       <p class="muted small">考えの奥には、昔からの「思いこみのクセ」がひそんでいることがあります。近いものがあれば、ひとつ。</p>
       <div class="chips" role="group" aria-label="奥にある思い">${NT.BELIEFS.map(b =>
         `<button class="chip${m.belief === b.id ? ' on' : ''}" aria-pressed="${m.belief === b.id}" data-act="mzBelief" data-id="${b.id}">${esc(b.label)}</button>`).join('')}
         <button class="chip${m.belief === 'unknown' ? ' on' : ''}" aria-pressed="${m.belief === 'unknown'}" data-act="mzBelief" data-id="unknown">わからない</button></div>
     </fieldset>
+    </details>
     <div class="wiz-nav"><button class="btn btn-ghost" data-act="mzReplayDraft">もう一度観る</button><button class="btn btn-primary" data-act="mzSave">ネタ帳にしまう</button></div>`;
   }
+  // 第十一回：終演後に聞くのは、前を向いた気分の名前
+  const MOOD_AFTER = [{ id: 'hotto', label: 'ほっと' }, { id: 'sukkiri', label: 'すっきり' }, { id: 'karui', label: 'かるい' }, { id: 'kusutto', label: 'くすっと' }, { id: 'futsuu', label: 'ふつう' }, { id: 'moya', label: 'まだもやもや' }];
+  const moodLabel = id => (MOOD_AFTER.find(x => x.id === id) || {}).label || '';
+  ACT.mzMood = el => {
+    const m = mz(); const id = el.dataset.id;
+    m.moodAfter = m.moodAfter === id ? null : id;
+    $$('.chip[data-act="mzMood"]').forEach(c => { const on = c.dataset.id === m.moodAfter; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    saveDraftSoon();
+  };
   ACT.mzLighter = el => {
     const m = mz(); const v = +el.dataset.v;
     m.lighter = m.lighter === v ? null : v;
@@ -1188,27 +1199,23 @@
     if (!sc) { RESULT = null; return VIEWS.home(); }
     const y = D.yokaiById[sc.yokai[0]];
     const rec = S.yokai[y.id] || { friend: 0 };
-    const measured = isNum(sc.beliefBefore) && isNum(sc.beliefAfter);
-    const drop = measured ? sc.beliefBefore - sc.beliefAfter : 0;
-    const emo = D.emotionById[sc.emotion] || { label: '気分' };
+    const tags = [isNum(sc.ochiFit) ? 'しっくり度：' + scaleLabel('fit', sc.ochiFit).replace(/[「」]/g, '') : '', sc.moodAfter ? 'いまの気分：' + moodLabel(sc.moodAfter) : ''].filter(Boolean);
     return `<div class="done">
+      <section class="done-curtain" aria-label="今日のオチ">
+        <p class="done-curtain-k">今日のオチ</p>
+        <p class="done-ochi">「${esc(sc.newThought)}」</p>
+        <p class="done-curtain-s">言い直したセリフは、いつでも持ち歩けます。</p>
+        ${tags.length ? `<p class="done-tags">${tags.map(t => `<span>${esc(t)}</span>`).join('')}</p>` : ''}
+      </section>
       <div class="done-hero">
         <div class="done-art">${A.yokai(y.id, 'happy')}</div>
         <p class="done-k">${esc(y.name)}と、なかよくなりました</p>
         ${hearts(rec.friend)}
       </div>
-      ${measured ? `<section class="ba" aria-label="上演の前と後">
-        ${baRow('セリフの信じ度', sc.beliefBefore, sc.beliefAfter, '%')}
-        ${isNum(sc.emoBefore) && isNum(sc.emoAfter) ? baRow('「' + emo.label + '」の強さ', sc.emoBefore, sc.emoAfter, '') : ''}
-      </section>` : ''}
-      <p class="done-msg">${measured
-        ? (drop > 0 ? `セリフの重みが <strong>${drop}ポイント</strong> 軽くなりました。` : '数字が変わらなくても大丈夫。ツッコミを入れてみたこと自体が、次の練習になります。')
-        : sc.lighter === 2 ? 'セリフが、<strong>だいぶ軽く</strong>なりました。' : sc.lighter === 1 ? 'セリフが、<strong>すこし軽く</strong>なりました。'
-          : 'ツッコミを入れてみたこと自体が、次の練習になります。'}</p>
       <p class="xp-gain">経験 +${r.xp}${r.rankUp ? `　<strong>${esc(r.rankUp)}に昇進しました</strong>` : ''}</p>
       ${r.unlocked.map(id => { const u = D.yokaiById[id]; return `<div class="honne"><p class="honne-k">${esc(u.name)}の本音が聞けるようになりました</p><blockquote>${esc(u.honne)}</blockquote></div>`; }).join('')}
-      ${!sc.gentle && CORE.openHanashi ? `<a class="hanashi-link" href="#hanashi" data-act="toHanashi" data-id="${sc.id}"><span class="hl-k">トリ・笑い噺</span><span class="hl-t">このできごとを、10年後の笑い話にしてみる？</span><span class="hl-s">重い出来事なら、笑いにしなくて大丈夫です</span></a>` : ''}
-      ${sc.gentle ? `<div class="gentle-note"><p>今日はとてもしんどい気持ちを書いてくれました。ひとりで抱えなくて大丈夫です。</p><button class="btn btn-ghost" data-act="openSos">相談先を見る</button></div>` : ''}
+      ${!sc.gentle && CORE.openHanashi ? `<a class="hanashi-link" href="#hanashi" data-act="toHanashi" data-id="${sc.id}"><span class="hl-k">トリ・笑い噺</span><span class="hl-t">このできごとを、10年後の笑い話にしてみる？</span><span class="hl-s">気が向いたら、どうぞ</span></a>` : ''}
+      ${sc.gentle ? `<div class="gentle-note"><p>話してくれて、ありがとう。ひとりで抱えなくて大丈夫です。</p><button class="btn btn-ghost" data-act="openSos">相談先を見る</button></div>` : ''}
       <div class="btn-row"><button class="btn btn-ghost" data-act="replay" data-id="${sc.id}">もう一度上演</button><button class="btn btn-primary" data-act="goHome">番組にもどる</button></div>
     </div>`;
   }
@@ -1364,7 +1371,7 @@
     if (step === 'iinaoshi') {
       const perform = () => {
         startPerformance(scriptFromDraft(m), {
-          onEnd: () => { m.phase = 'rate'; m.beliefAfter = m.beliefBefore; m.emoAfter = m.emoBefore; saveDraft(); render('manzai'); }
+          onEnd: () => { m.phase = 'rate'; if (!isNum(m.ochiFit)) m.ochiFit = 70; saveDraft(); render('manzai'); }
         });
       };
       if (guardRisk(m.newThought, perform)) return;
@@ -1388,9 +1395,10 @@
   ACT.mzSave = () => {
     const m = mz();
     const sc = scriptFromDraft(m);
-    const off = measureMode() === 'off';
-    sc.beliefAfter = off ? null : m.beliefAfter; sc.emoAfter = off ? null : m.emoAfter; sc.replays = 0;
-    if (isNum(m.lighter)) sc.lighter = m.lighter;
+    // 第十一回：古いセリフの信じ度・元の気分の強さは、終演後に測り直さない
+    sc.beliefAfter = null; sc.emoAfter = null; sc.replays = 0;
+    if (measureMode() !== 'off' && isNum(m.ochiFit)) sc.ochiFit = m.ochiFit;
+    if (m.moodAfter) sc.moodAfter = m.moodAfter;
     if (m.belief) sc.belief = m.belief;
     if (m.fromNeta) sc.fromNeta = m.fromNeta;
     S.scripts.unshift(sc);
@@ -1531,6 +1539,7 @@
   BIND.newThought = el => { mz().newThought = el.value; setNext(el.value.trim().length >= 2); ochiRefresh(el.value); saveDraftSoon(); };
   BIND.okPart = el => { const m = mz(); m.kata = Object.assign({}, m.kata, { [el.dataset.k]: el.value }); saveDraftSoon(); };
   BIND.beliefAfter = el => { mz().beliefAfter = +el.value; saveDraftSoon(); };
+  BIND.ochiFit = el => { mz().ochiFit = +el.value; saveDraftSoon(); };
   BIND.emoAfter = el => { mz().emoAfter = +el.value; saveDraftSoon(); };
 
   // ============ 上演（舞台） ============
@@ -1749,7 +1758,7 @@
   const nagameSessions = () => ((S.nagame && S.nagame.sessions) || []);
   const nagameParts = () => nagameSessions().reduce((a, s) => a.concat(s.parts && s.parts.length ? s.parts : [s]), []);
   const LEG_COND = {
-    daitengu: () => ({ cur: S.scripts.some(sc => (sc.tk || []).length >= 3 && ((isNum(sc.beliefBefore) && isNum(sc.beliefAfter) && sc.beliefBefore - sc.beliefAfter >= 30) || sc.lighter === 2)) ? 1 : 0, max: 1, unit: '回' }),
+    daitengu: () => ({ cur: S.scripts.some(sc => (sc.tk || []).length >= 3 && ((isNum(sc.beliefBefore) && isNum(sc.beliefAfter) && sc.beliefBefore - sc.beliefAfter >= 30) || sc.lighter === 2 || (isNum(sc.ochiFit) && sc.ochiFit >= 70))) ? 1 : 0, max: 1, unit: '回' }),
     yatagarasu: () => ({ cur: Math.min(3, nagameParts().filter(p => p.practice === 'ohayashi' && (p.done || (p.steps || 0) >= 6)).length), max: 3, unit: '回' }),
     baku: () => ({ cur: Math.min(3, nagameSessions().filter(s => s.practice === 'set' && s.set === 'nemuri' && s.parts && s.parts.length >= 2 && s.parts.every(p => p.done)).length), max: 3, unit: '回' }),
     amabie: () => { const days = new Set(((S.fuku && S.fuku.goods) || []).map(g => ymd(new Date(g.date)))); return { cur: Math.min(7, days.size), max: 7, unit: '日' }; },
@@ -2214,8 +2223,8 @@
   VIEWS.neta = function () {
     const list = S.scripts;
     const n = list.length;
-    const numd = list.filter(x => isNum(x.beliefBefore) && isNum(x.beliefAfter));
-    const avg = numd.length ? Math.round(numd.reduce((s, x) => s + (x.beliefBefore - x.beliefAfter), 0) / numd.length) : 0;
+    const fits = list.filter(x => isNum(x.ochiFit));
+    const fitAvg = fits.length ? Math.round(fits.reduce((a, x) => a + x.ochiFit, 0) / fits.length) : 0;
     const freq = {};
     list.forEach(s => s.yokai.forEach(id => { freq[id] = (freq[id] || 0) + 1; }));
     const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -2225,7 +2234,7 @@
     ${n ? `<section class="neta-sum" aria-label="ネタ帳のまとめ">
       <dl class="tally">
         <div><dt>上演</dt><dd>${n}<small>回</small></dd></div>
-        ${numd.length ? `<div><dt>信じ度の変化（平均）</dt><dd>${avg > 0 ? '−' : avg < 0 ? '+' : '±'}${Math.abs(avg)}<small>pt</small></dd></div>` : ''}
+        ${fits.length ? `<div><dt>オチのしっくり度（平均）</dt><dd>${fitAvg}<small>%</small></dd></div>` : ''}
       </dl>
       ${top.length ? `<p class="neta-top-k">よく出る妖怪</p><ul class="neta-top">${top.map(([id, c]) => `<li>${A.yokai(id, 'norm')}<span>${esc(D.yokaiById[id].name)}</span><b>${c}回</b></li>`).join('')}</ul>
       <p class="muted small">同じ妖怪がよく出るのは、あなたの考え方のクセ。気づけたら、それだけでツッコミやすくなります。</p>` : ''}
@@ -2241,8 +2250,9 @@
     return `<li><button class="neta-item" data-act="netaOpen" data-id="${s.id}">
       <span class="neta-art">${A.yokai(y.id, 'norm')}</span>
       <span class="neta-main"><span class="neta-date">${s.sample ? '見本' : fmtMD(s.date)}・${esc(y.name)}</span>
-      <span class="neta-thought">「${esc(s.thought)}」</span></span>
-      ${isNum(s.beliefBefore) && isNum(s.beliefAfter) ? `<span class="neta-ba">${s.beliefBefore}<i>→</i>${s.beliefAfter}<small>%</small></span>` : s.lighter ? `<span class="neta-ba neta-light">${s.lighter === 2 ? 'だいぶ軽く' : 'すこし軽く'}</span>` : ''}
+      <span class="neta-ochi">「${esc(s.newThought)}」</span>
+      <span class="neta-thought">ボケ：${esc(s.thought)}</span></span>
+
     </button></li>`;
   }
   ACT.netaOpen = el => {
@@ -2253,16 +2263,14 @@
     openSheet(`<div class="daihon">
       <p class="eyebrow">${s.sample ? '見本の台本' : fmtMD(s.date) + 'の台本'}</p>
       <h2 class="sheet-title">${esc(S.profile.name || 'ココロ亭')}・${esc(yn)}</h2>
+      <p class="daihon-ochi"><span>オチ</span>「${esc(s.newThought)}」</p>
       ${s.situation ? `<p class="daihon-sit">状況：${esc(s.situation)}</p>` : ''}
       <dl class="daihon-lines">
         <dt>${esc(D.yokaiById[s.yokai[0]].name)}（ボケ）</dt><dd>「${esc(s.thought)}」</dd>
         ${s.tk.map(t => { const T = D.tsukkomiById[t.id]; return T ? `<dt class="tk">${esc(tkLine(T, s.gentle))}</dt><dd>${nl2br(t.a)}</dd>` : ''; }).join('')}
         <dt class="final">言い直し</dt><dd class="final">${nl2br(s.newThought)}</dd>
       </dl>
-      ${isNum(s.beliefBefore) && isNum(s.beliefAfter) ? `<section class="ba" aria-label="上演の前と後">
-        ${baRow('セリフの信じ度', s.beliefBefore, s.beliefAfter, '%')}
-        ${isNum(s.emoBefore) && isNum(s.emoAfter) ? baRow('「' + emo.label + '」の強さ', s.emoBefore, s.emoAfter, '') : ''}
-      </section>` : ''}
+      ${isNum(s.ochiFit) || s.moodAfter ? `<p class="done-tags">${isNum(s.ochiFit) ? `<span>しっくり度：${esc(scaleLabel('fit', s.ochiFit).replace(/[「」]/g, ''))}</span>` : ''}${s.moodAfter ? `<span>いまの気分：${esc(moodLabel(s.moodAfter))}</span>` : ''}</p>` : ''}
       ${s.replays ? `<p class="muted small">再演 ${s.replays}回</p>` : ''}
       <div class="btn-row">${s.sample ? '' : `<button class="btn btn-ghost danger-text" data-act="netaDelete" data-id="${s.id}">消す</button>`}
       <button class="btn btn-primary" data-act="${s.sample ? 'playSample' : 'replay'}" data-id="${s.id}">もう一度上演</button></div>

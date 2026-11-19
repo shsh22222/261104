@@ -118,6 +118,7 @@ const BASE = 'http://127.0.0.1:8765/index.html';
     await page.click('#stNext'); await page.waitForTimeout(80);
   }
   await page.waitForTimeout(300);
+  await page.click('.belief-fold summary');
   await page.click('[data-act="mzBelief"][data-id="unlovable"]');
   await shot('07-rate-belief', true);
   await page.click('[data-act="mzSave"]');

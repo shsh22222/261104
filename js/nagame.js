@@ -950,7 +950,7 @@
       $('#cScene').innerHTML = `<div class="calm-end">
         <p class="calm-end-k">おつかれさまでした</p>
         ${summary}
-        ${K.isNum(s.before) ? K.scaleHtml({ id: 'ngAfter', label: 'いまのざわざわ度', type: 'zawa', value: s.before, was: 'はじめる前は ' + K.scaleLabel('zawa', s.before) }) : ''}
+        ${K.isNum(s.before) ? K.scaleHtml({ id: 'ngAfter', label: 'いま、どんな感じ？', type: 'ima', value: s.before }) : ''}
       </div>`;
       $('#cBar').innerHTML = '<button class="btn btn-night-primary btn-block" data-act="ngSave">記録して閉じる</button><button class="link-btn night" data-act="ngDiscard">記録せずに閉じる</button>';
       const tm = $('#cTimer'); if (tm) tm.textContent = '';
@@ -983,11 +983,10 @@
         <div class="yg-result-art">${A.yokai(yid, 'happy')}</div>
         <p class="yg-result-say">${esc(y.name)}が、少し静かになりました</p>
         ${hearts(r.friend)}
-        ${K.isNum(s.before) && K.isNum(s.after) ? `<p class="mk-result-num">${s.before}<span>→</span>${s.after}</p>` : ''}
         <p>${!(K.isNum(s.before) && K.isNum(s.after)) ? '眺めたこと自体が、注意の練習です。おつかれさまでした。'
-          : d < 0 ? 'ざわざわ度が ' + (-d) + ' 下がりました。'
-          : d === 0 ? 'ざわざわ度は変わりませんでした。変わらない日も、眺めたことは練習になっています。'
-            : 'ざわざわ度が上がりました。体や考えに注意を向けると、かえってざわつくこともあります。そんなときは「外の感覚だけ」や「お囃子の聞き分け」、休憩所の呼吸を試してください。'}</p>
+          : d < 0 ? '眺める前より、静けさがもどってきました。'
+          : d === 0 ? '眺めたこと自体が、注意の練習になっています。'
+            : '体や考えに注意を向けると、かえって落ち着かないこともあります。そんなときは「外の感覚だけ」や「お囃子の聞き分け」、休憩所の呼吸もどうぞ。'}</p>
         ${unlocked ? `<div class="honne"><p class="honne-k">${esc(y.name)}の本音が聞けるようになりました</p><blockquote>${esc(y.honne)}</blockquote></div>` : ''}
         <p class="xp-gain">経験 +${D.XP.nagame}${up ? `　<strong>${esc(up)}に昇進しました</strong>` : ''}</p>
         <button class="btn btn-primary btn-block" data-act="closeSheet">閉じる</button>

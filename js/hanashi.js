@@ -21,6 +21,9 @@
       aruaru: '例：急いでいる朝ほど、服は裏返る'
     };
     const STEPS = ['できごと', '芸人の目', '噺', '高座'];
+    // 第十一回：終わりに重さを測り直さず、「いまなら、どう話せる？」を聞く
+    const TALK = [{ id: 'warai', label: '笑って話せる' }, { id: 'karuku', label: '軽く話せる' }, { id: 'neta', label: 'ネタにできそう' }, { id: 'mada', label: 'まだ、しまっておく' }];
+    const talkLabel = id => (TALK.find(x => x.id === id) || {}).label || '';
     const HEAVY = 70;
 
     function hs() {
@@ -114,18 +117,18 @@
       return `<li class="hn-item">
         <p class="hn-item-t">『${esc(s.title || autoTitle(s))}』</p>
         <p class="hn-item-ochi">${esc(s.ochi)}</p>
-        <p class="hn-item-meta">${esc(fmtMD(s.date))}・${esc(L.name)}${nums ? `・重さ ${s.weightBefore} → ${s.weightAfter}${d > 0 ? `（−${d}）` : ''}` : ''}</p>
+        <p class="hn-item-meta">${esc(fmtMD(s.date))}・${esc(L.name)}${s.talk ? '・いまなら' + esc(talkLabel(s.talk)) : ''}</p>
         <div class="btn-row"><button class="btn btn-small btn-ghost" data-act="hnDel" data-id="${s.id}">消す</button><button class="btn btn-small btn-primary" data-act="hnReplay" data-id="${s.id}">高座で一席</button></div>
       </li>`;
     }
     function autoTitle(s) { const t = String(s.event || '').replace(/[。、！？\s]+$/, ''); return t.length > 12 ? t.slice(0, 12) + '…' : t || 'しくじり'; }
     function resultCard(r) {
-      const d = K.isNum(r.before) && K.isNum(r.after) ? r.before - r.after : 0;
       return `<section class="hn-result" aria-live="polite">
         <p class="hn-result-k">噺帳にしまいました</p>
         <p class="hn-result-t">『${esc(r.title)}』</p>
-        ${K.isNum(r.before) && K.isNum(r.after) ? `<p class="hn-result-w">出来事の重さ <strong>${esc(K.scaleLabel('weight', r.before).replace(/[「」]/g, ''))}</strong> → <strong>${esc(K.scaleLabel('weight', r.after).replace(/[「」]/g, ''))}</strong></p>` : ''}
-        <p>${!(K.isNum(r.before) && K.isNum(r.after)) ? '出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。' : d > 0 ? '出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。' : '重さが変わらなくても大丈夫。語り手の席に一度座ったことが、次の距離になります。'}</p>
+        ${r.ochi ? `<p class="hn-result-ochi">「${esc(r.ochi)}」</p>` : ''}
+        ${r.talk ? `<p class="hn-result-w">いまなら：<strong>${esc(talkLabel(r.talk))}</strong></p>` : ''}
+        <p>出来事は変わらなくても、持ち方は変えられる。お後がよろしいようで。</p>
         ${r.up ? `<p class="xp-gain"><strong>${esc(r.up)}に昇進しました</strong></p>` : ''}
       </section>`;
     }
@@ -213,15 +216,21 @@
     function stepAfter(d) {
       return `<div class="wiz-head"><span class="eyebrow">終演</span></div>
       <h1 class="wiz-title">一席、お見事でした</h1>
-      <p class="wiz-lead">語り手の席から眺めてみて、いまはどうですか。感じたままで大丈夫です。</p>
-      <blockquote class="boke-quote hn-ev">「${esc(d.event)}」</blockquote>
-      ${K.scaleHtml({ id: 'hnWa', label: 'この出来事、いまの重さは？', type: 'weight', value: d.weightAfter, bind: 'hnWa', was: '噺にする前は ' + K.scaleLabel('weight', d.weightBefore) })}
+      <p class="wiz-lead">今日のオチは、これ。</p>
+      <blockquote class="ochi-quote">「${esc(d.ochi)}」</blockquote>
+      <fieldset class="field"><legend>いまなら、この出来事をどう話せる？ <span class="opt">選ばなくてもOK</span></legend>
+        <div class="chips" role="group" aria-label="いまの話し方">${TALK.map(x => `<button class="chip${d.talk === x.id ? ' on' : ''}" aria-pressed="${d.talk === x.id}" data-act="hnTalk" data-id="${x.id}">${esc(x.label)}</button>`).join('')}</div></fieldset>
       <div class="wiz-nav"><button class="btn btn-ghost" data-act="hnPerformDraft">もう一度一席</button><button class="btn btn-primary" data-act="hnSave">噺帳にしまう</button></div>`;
     }
 
     // ---- 入力 ----
     BIND.hnEvent = el => { const d = dr(); if (!d) return; d.event = el.value; enable('hnNextBtn', d.event.trim().length >= 2 && (d.step === 0 || d.ochi.trim().length >= 2)); refreshHints(); K.save(); };
     BIND.hnWb = el => { const d = dr(); if (!d) return; d.weightBefore = +el.value; d.weightAfter = +el.value; const h = $('#hnHeavyHint'); if (h) h.hidden = d.weightBefore < HEAVY; K.save(); };
+    ACT.hnTalk = el => {
+      const d = dr(); if (!d) return; const id = el.dataset.id;
+      d.talk = d.talk === id ? null : id; K.save();
+      $$('.chip[data-act="hnTalk"]').forEach(c => { const on = c.dataset.id === d.talk; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    };
     BIND.hnWa = el => { const d = dr(); if (!d) return; d.weightAfter = +el.value; K.save(); };
     BIND.hnLensText = el => { const d = dr(); if (!d) return; d.lensText = el.value; if (d.step === 1) enable('hnNextBtn', d.lensText.trim().length >= 2); refreshHints(); K.save(); };
     BIND.hnTitle = el => { const d = dr(); if (!d) return; d.title = el.value; refreshHints(); K.save(); };
@@ -274,11 +283,11 @@
       const d = dr(); if (!d) return;
       const h = hs();
       const off = K.measureMode() === 'off';
-      const st = { id: d.id, date: new Date().toISOString(), event: d.event.trim(), weightBefore: off ? null : d.weightBefore, weightAfter: off ? null : d.weightAfter, lens: d.lens, lensText: d.lensText.trim(), furi: d.furi.trim(), ochi: d.ochi.trim(), title: d.title.trim() || autoTitle(d) };
+      const st = { id: d.id, date: new Date().toISOString(), event: d.event.trim(), weightBefore: off ? null : d.weightBefore, weightAfter: null, talk: d.talk || null, lens: d.lens, lensText: d.lensText.trim(), furi: d.furi.trim(), ochi: d.ochi.trim(), title: d.title.trim() || autoTitle(d) };
       h.stories.unshift(st);
       h.draft = null;
       const up = addXP(D.XP.hanashi);
-      RESULT = { title: st.title, before: st.weightBefore, after: st.weightAfter, up };
+      RESULT = { title: st.title, ochi: st.ochi, talk: st.talk, up };
       K.save(); Sfx.chime();
       K.rerender(); window.scrollTo(0, 0);
     };

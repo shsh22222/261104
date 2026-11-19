@@ -2656,6 +2656,20 @@ button.detour { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .quick-tk-b.on, .quick-ochi-b.on { border-color: var(--kaki); background: var(--kaki-soft); }
 .quick-q { font-size: var(--t-sm); font-weight: 700; }
 
+/* ---------- 第十一回：幕切れは、新しいセリフで ---------- */
+.ochi-quote { margin: 0; background: var(--moegi-soft); color: var(--fg); border-left: 5px solid var(--moegi); border-radius: 12px; padding: 14px 16px; font-weight: 700; font-size: var(--t-lg); line-height: 1.7; }
+.done-curtain { background: radial-gradient(140% 120% at 50% 0%, #3a1d10 0%, var(--maku-kuro) 70%); color: var(--stage-fg); border-radius: var(--r); padding: 18px 16px; text-align: center; display: flex; flex-direction: column; gap: 8px; animation: rise .6s ease both; }
+.done-curtain-k { font-size: var(--t-xs); letter-spacing: .3em; color: var(--stage-glow); font-weight: 700; }
+.done-ochi { font-family: var(--f-display); font-size: var(--t-xl); line-height: 1.6; }
+.done-curtain-s { font-size: var(--t-xs); color: var(--stage-muted); }
+.done-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.done-tags span { font-size: var(--t-xs); border: 1px solid currentColor; border-radius: 999px; padding: 1px 10px; opacity: .85; }
+.neta-main .neta-ochi { font-weight: 700; font-size: var(--t-sm); color: var(--moegi); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.neta-main .neta-thought { font-weight: 400; font-size: var(--t-xs); color: var(--muted); -webkit-line-clamp: 1; }
+.daihon-ochi { background: var(--moegi-soft); border-radius: 10px; padding: 10px 12px; font-weight: 700; line-height: 1.6; }
+.daihon-ochi span { display: block; font-size: var(--t-xs); color: var(--moegi); letter-spacing: .2em; }
+.hn-result-ochi { font-family: var(--f-display); font-size: var(--t-lg); line-height: 1.6; }
+
 /* ---------- 動き ---------- */
 @keyframes pop {
   0% { opacity: 0; transform: rotate(-14deg) scale(.4); }
@@ -2711,3 +2725,6 @@ button.detour { width: 100%; font: inherit; text-align: left; cursor: pointer; }
   .mekuri { min-height: 13rem; padding: 14px 10px; }
   .mekuri-name { font-size: 1.9rem; }
 }
+.belief-fold { border-top: 1px solid var(--line); padding-top: 8px; }
+.belief-fold summary { cursor: pointer; font-size: var(--t-sm); color: var(--muted); min-height: 40px; display: flex; align-items: center; }
+.belief-fold[open] summary { margin-bottom: 8px; }

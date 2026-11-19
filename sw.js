@@ -1,5 +1,5 @@
 /* ココロ寄席 ― オフライン用のサービスワーカー（アプリ本体だけをキャッシュ） */
-const CACHE = 'kokoro-yose-v11';
+const CACHE = 'kokoro-yose-v12';
 const SHELL = [
   './',
   './index.html',

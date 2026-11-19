@@ -83,9 +83,9 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8765/index.html';
     await page.click('#stNext'); await page.waitForTimeout(80);
   }
   await page.waitForTimeout(300);
-  await page.fill('#beliefAfter', '40').catch(() => {});
-  await page.$eval('#beliefAfter', el => { el.value = 40; el.dispatchEvent(new Event('input', { bubbles: true })); });
-  await page.$eval('#emoAfter', el => { el.value = 35; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.$eval('#ochiFit', el => { el.value = 80; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.click('[data-act="mzMood"][data-id="hotto"]');
+  if (!(await page.textContent('.ochi-quote')).includes('つまっても')) errors.push('rate should show the new line');
   await shot(page, '12-rate');
   await page.click('[data-act="mzSave"]');
   await page.waitForTimeout(400);
