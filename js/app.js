@@ -1576,7 +1576,7 @@
       L.push({ who: 'you', kind: 'tsukkomi', text: 'もう、いいかげんにしなさいっ。', ymood: 'happy' });
       L.push({ who: 'both', text: 'ありがとうございましたー！', mood: 'happy' });
     }
-    // 考えはフィクション。ただし、しんどさは本物。
+    // 考えはフィクション。言い直したセリフを持ち帰る（第十一回：しんどさの感覚に引き戻さない）
     L.push({ who: 'telop', kind: 'telop', text: G ? D.END_TELOP.gentleMain : D.END_TELOP.main, sub: G ? D.END_TELOP.gentleCare : D.END_TELOP.care, mood: 'happy' });
     return L;
   }
@@ -2443,7 +2443,7 @@
     <section class="panel about" aria-labelledby="g-about-h">
       <h2 id="g-about-h" class="panel-title">ココロ寄席について</h2>
       <p>ココロ寄席は、認知行動療法（CBT）の技法を「寄席の演目」に仕立てたセルフケアの道具です。臨床心理士、精神科医、ゲームデザイナー、漫才作家、民俗学者、神経科学者、行動経済学者、即興演劇の演出家、UXデザイナー、当事者のピアサポーター、マインドフルネス講師、睡眠専門医、プロダクトデザイナー、落語家、ユーモア研究者、スキーマ療法家、放送作家の視点で、3回の設計会議を重ねてつくりました。</p>
-      <p class="fiction-note">出来事とあなたのつらさは本物。でも、頭の中のセリフには、いつも脚色が入っています。※この考えはフィクションです。</p>
+      <p class="fiction-note">出来事は本物。でも、頭の中のセリフには、いつも脚色が入っています。※この考えはフィクションです。</p>
       <h3>演目とCBTの対応</h3>
       <dl class="map">
         <div><dt>妖怪漫才</dt><dd>思考記録表（コラム法）、認知再構成法、ソクラテス式質問、脱フュージョン</dd></div>
